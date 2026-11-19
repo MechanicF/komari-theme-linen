@@ -1,6 +1,6 @@
 # Linen 暖白主题
 
-基于 Komari Monitor 1.6.1 的 Linen v2.2 独立节点运行台。首页重新组织为可用率总览、待关注队列和可筛选的节点资源清单；保留 Komari 实时节点数据、详情路由、登录和设置入口。
+基于 Komari Monitor 1.6.1 的 Linen v2.2.1 独立节点运行台。首页重新组织为可用率总览、待关注队列和可筛选的节点资源清单；保留 Komari 实时节点数据、详情路由、登录和设置入口。
 
 ## 本地构建
 
@@ -12,7 +12,7 @@ npm run build
 python3 scripts/package-theme.py
 ```
 
-输出主题包为 `release/komari-theme-linen-2.2.0.zip`。压缩包根目录包含 `komari-theme.json`、`preview.png` 和构建目录 `dist/`。
+输出主题包为 `release/komari-theme-linen-2.2.1.zip`。压缩包根目录包含 `komari-theme.json`、`preview.png` 和构建目录 `dist/`。
 
 ## 安装到 Komari
 

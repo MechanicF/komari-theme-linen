@@ -2,7 +2,7 @@
 
 ![Linen v2 桌面首页](preview.png)
 
-Linen 2.2 是面向 Komari Monitor 1.6.1 的独立监控主题。首页与节点详情使用新组件和新布局，按“整体状态 → 待关注节点 → 资源清单 → 历史趋势”组织信息。
+Linen 2.2.1 是面向 Komari Monitor 1.6.1 的独立监控主题。首页与节点详情使用新组件和新布局，按“整体状态 → 待关注节点 → 资源清单 → 历史趋势”组织信息。
 
 ## 展示
 
@@ -17,7 +17,9 @@ Linen 2.2 是面向 Komari Monitor 1.6.1 的独立监控主题。首页与节点
 
 ![暗色首页](docs/preview-dark.png)
 
-<img src="docs/preview-mobile.png" alt="手机节点运行台" width="390" />
+<img src="docs/preview-mobile.png" alt="手机紧凑列表" width="390" />
+
+<img src="docs/preview-mobile-card.png" alt="手机详细卡片" width="390" />
 
 </details>
 
@@ -41,6 +43,11 @@ Linen 2.2 是面向 Komari Monitor 1.6.1 的独立监控主题。首页与节点
 - 累计流量保留离线节点的最后上报计数；总消耗流量 = 已知累计上传 + 已知累计下载。计数可能因 Agent/系统重启或重置而变化，不代表自然月账单。
 - 部分节点或方向缺失时明确标记“部分数据缺失/仅已知部分”，缺测显示 —，真实的零仍显示为 0。
 
+### 2.2.1 手机视图切换修复
+
+- 手机列表采用紧凑行布局，卡片保留完整细项、圆角边框和独立间距。
+- 修复窄屏规则覆盖两种视图布局、导致点击后看似未切换的问题；增加触控与刷新记忆测试。
+
 ### 2.2 卡片配置与关注分类
 
 - “待关注”只包含在线节点的资源异常、采样缺失或过期，不再与“离线”重复。
@@ -58,11 +65,11 @@ Linen 2.2 是面向 Komari Monitor 1.6.1 的独立监控主题。首页与节点
 
 ## 安装与升级
 
-1. [下载 Linen 2.2.0 主题包](release/komari-theme-linen-2.2.0.zip)。请下载 ZIP 文件本身，不要上传 GitHub 的源码压缩包。
+1. [下载 Linen 2.2.1 主题包](release/komari-theme-linen-2.2.1.zip)。请下载 ZIP 文件本身，不要上传 GitHub 的源码压缩包。
 2. 登录 Komari 后台，进入“主题管理”，上传或更新 Linen。
 3. 对新安装主题选择“设为当前主题”，然后刷新首页。
 
-**升级提示：**主题标识仍为 Linen。若你已经启用了旧版 Linen，更新同名主题文件可能立即改变线上页面。先保留 [2.1.0 主题包](release/komari-theme-linen-2.1.0.zip) 作为回滚副本。主题更新不需要升级 Komari 服务端或 Agent。
+**升级提示：**主题标识仍为 Linen。若你已经启用了旧版 Linen，更新同名主题文件可能立即改变线上页面。先保留 [2.2.0 主题包](release/komari-theme-linen-2.2.0.zip) 作为回滚副本。主题更新不需要升级 Komari 服务端或 Agent。
 
 ### 刷新与回滚
 
@@ -80,7 +87,7 @@ npm run build
 python3 scripts/package-theme.py
 ```
 
-输出为 release/komari-theme-linen-2.2.0.zip。主题包只包含根目录清单、PNG 预览及 dist/ 资源；不含源码和 node_modules。完整前端构建占用较多内存，低内存主机请优先下载预构建包。
+输出为 release/komari-theme-linen-2.2.1.zip。主题包只包含根目录清单、PNG 预览及 dist/ 资源；不含源码和 node_modules。完整前端构建占用较多内存，低内存主机请优先下载预构建包。
 
 ## 浏览器验证
 

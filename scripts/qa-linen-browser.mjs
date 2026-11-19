@@ -232,6 +232,7 @@ try {
   const context = await browser.newContext({
     locale: "zh-CN",
     viewport: { width: 1440, height: 1000 },
+    hasTouch: true,
     colorScheme: "light",
     reducedMotion: "reduce",
     serviceWorkers: "block",
@@ -658,6 +659,65 @@ try {
   const mobile = await metrics();
   assert.ok(mobile.scrollWidth <= mobile.width + 2, JSON.stringify(mobile));
   assert.ok(await page.locator(".linen-nav__admin").isVisible());
+  const mobileViewStyle = () =>
+    page
+      .locator(".linen-node-row")
+      .first()
+      .evaluate((el) => {
+        const c = getComputedStyle(el);
+        return {
+          height: el.getBoundingClientRect().height,
+          padding: c.padding,
+          radius: c.borderRadius,
+          grid: !!el.closest(".is-grid"),
+          detailsVisible: [
+            ...el.querySelectorAll(".linen-metric__detail"),
+          ].some((e) => getComputedStyle(e).display !== "none"),
+        };
+      });
+  for (const width of [320, 390, 430]) {
+    await page.setViewportSize({ width, height: 844 });
+    await page.getByRole("button", { name: "列表视图", exact: true }).tap();
+    await metrics();
+    const compact = await mobileViewStyle();
+    await page.getByRole("button", { name: "卡片视图", exact: true }).tap();
+    await metrics();
+    const cards = await mobileViewStyle();
+    assert.equal(compact.grid, false);
+    assert.equal(cards.grid, true);
+    assert.equal(compact.detailsVisible, false);
+    assert.equal(cards.detailsVisible, true);
+    assert.ok(
+      cards.height > compact.height + 15,
+      JSON.stringify({ width, compact, cards }),
+    );
+    assert.notEqual(compact.padding, cards.padding);
+    assert.notEqual(compact.radius, cards.radius);
+    assert.ok(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth + 2,
+      ),
+    );
+  }
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.screenshot({
+    path: out + "/preview-mobile-card.png",
+    fullPage: true,
+  });
+  await page.reload({ waitUntil: "networkidle" });
+  assert.equal(
+    await page
+      .getByRole("button", { name: "卡片视图", exact: true })
+      .getAttribute("aria-pressed"),
+    "true",
+  );
+  assert.equal(await page.locator(".linen-node-list.is-grid").count(), 1);
+  await page.getByRole("button", { name: "列表视图", exact: true }).tap();
+  await metrics();
+  assert.equal(await page.locator(".linen-node-list.is-grid").count(), 0);
+  report.push(
+    "phone touch toggles visibly compact list/detailed cards at 320/390/430px; grid persists after reload",
+  );
   await page.screenshot({ path: out + "/preview-mobile.png", fullPage: true });
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.evaluate(() =>
