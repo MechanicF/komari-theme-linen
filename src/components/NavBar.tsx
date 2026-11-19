@@ -2,63 +2,97 @@ import ThemeSwitch from "./ThemeSwitch";
 import ColorSwitch from "./ColorSwitch";
 import LanguageSwitch from "./Language";
 import { AccountProvider, useAccount } from "@/contexts/AccountContext";
-import { Button, IconButton } from "@radix-ui/themes";
-import { GitHubLogoIcon } from "@radix-ui/react-icons";
-import { LogIn } from "lucide-react";
+import { IconButton } from "@radix-ui/themes";
+import {
+  Activity,
+  ChevronRight,
+  Languages,
+  LogIn,
+  Palette,
+  Sun,
+} from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { usePublicInfo } from "@/contexts/PublicInfoContext";
 import { useTranslation } from "react-i18next";
 import { loginPath } from "@/utils/loginRedirect";
+
 const NavBar = () => {
   const { publicInfo } = usePublicInfo();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const location = useLocation();
   const { account } = useAccount();
-  const loginRedirect = loginPath(location.pathname, location.search);
+  const english = (i18n.resolvedLanguage || i18n.language || "zh").startsWith(
+    "en",
+  );
+  const siteName = publicInfo?.sitename || "Komari";
+  const destination = account?.logged_in
+    ? "/admin/dashboard"
+    : loginPath(location.pathname, location.search);
+  const buttonClass = "linen-nav-icon";
   return (
-    <nav className="km-navbar nav-bar flex rounded-b-lg items-center gap-2 md:gap-3 max-h-16 justify-end min-w-full p-2 px-4">
-      <div className="km-navbar-brand mr-auto flex items-center min-w-0">
-        <Link to="/" className="flex items-center min-w-0">
-          <span className="font-bold text-[clamp(1.25rem,5vw,1.875rem)] whitespace-nowrap truncate leading-tight">
-            {publicInfo?.sitename}
+    <nav
+      className="km-navbar linen-nav"
+      aria-label={english ? "Main navigation" : "主导航"}
+    >
+      <Link to="/" className="linen-nav__brand" aria-label={siteName}>
+        <span className="linen-nav__mark">
+          <Activity size={17} strokeWidth={1.8} />
+        </span>
+        <span className="linen-nav__brand-copy">
+          <strong>{siteName}</strong>
+          <small>{english ? "NODE OPERATIONS" : "节点运行台"}</small>
+        </span>
+      </Link>
+      <div className="linen-nav__right">
+        <span className="linen-nav__live">
+          <i />
+          {english ? "LIVE" : "实时监控"}
+        </span>
+        <ThemeSwitch
+          icon={
+            <IconButton
+              className={buttonClass}
+              variant="ghost"
+              title={t("common.appearance", "Appearance")}
+              aria-label={t("common.appearance", "Appearance")}
+            >
+              <Sun size={16} />
+            </IconButton>
+          }
+        />
+        <ColorSwitch
+          icon={
+            <IconButton
+              className={buttonClass}
+              variant="ghost"
+              title={t("common.color", "Accent color")}
+              aria-label={t("common.color", "Accent color")}
+            >
+              <Palette size={16} />
+            </IconButton>
+          }
+        />
+        <LanguageSwitch
+          icon={
+            <IconButton
+              className={buttonClass + " linen-nav-icon--language"}
+              variant="ghost"
+              title={t("common.language", "Language")}
+              aria-label={t("common.language", "Language")}
+            >
+              <Languages size={16} />
+            </IconButton>
+          }
+        />
+        <a className="linen-nav__admin" href={destination}>
+          <LogIn size={15} />
+          <span>
+            {account?.logged_in
+              ? t("settings.title", "Settings")
+              : t("login.title")}
           </span>
-        </Link>
-        <div className="hidden flex-row items-baseline md:flex ml-3">
-          <div
-            style={{ borderColor: "var(--accent-3)" }}
-            className="border-r-2 mr-2 h-4 self-center"
-          />
-          <span
-            className="text-base font-bold whitespace-nowrap"
-            style={{ color: "var(--accent-4)" }}
-          >
-            Komari Monitor
-          </span>
-        </div>
-      </div>
-
-      <div className="km-navbar-controls flex items-center gap-2 flex-shrink-0">
-        <IconButton
-          variant="soft"
-          onClick={() => {
-            window.open("https://github.com/komari-monitor", "_blank");
-          }}
-        >
-          <GitHubLogoIcon />
-        </IconButton>
-
-        <ThemeSwitch />
-        <ColorSwitch />
-        <LanguageSwitch />
-        <Button
-          onClick={() => {
-            window.location.href =
-              account?.logged_in ? "/admin/dashboard" : loginRedirect;
-          }}
-        >
-          <LogIn size={16} />
-          {account?.logged_in ? t("settings.title", "Settings") : t("login.title")}
-        </Button>
+          <ChevronRight size={14} />
+        </a>
       </div>
     </nav>
   );

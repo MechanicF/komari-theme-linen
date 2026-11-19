@@ -8,7 +8,7 @@ ROOT = Path(__file__).resolve().parents[1]
 DIST = ROOT / "dist"
 RELEASE = ROOT / "release"
 MANIFEST = ROOT / "komari-theme.json"
-PREVIEW = ROOT / "preview.svg"
+PREVIEW = ROOT / "preview.png"
 
 if not DIST.is_dir() or not (DIST / "index.html").is_file():
     raise SystemExit("Build dist/ first with npm run build")
@@ -28,7 +28,7 @@ with ZipFile(archive, "w", compression=ZIP_DEFLATED, compresslevel=9) as bundle:
 with ZipFile(archive) as bundle:
     bad_member = bundle.testzip()
     names = set(bundle.namelist())
-    required = {"komari-theme.json", "preview.svg", "dist/index.html"}
+    required = {"komari-theme.json", "preview.png", "dist/index.html"}
     if bad_member or not required.issubset(names):
         archive.unlink(missing_ok=True)
         raise SystemExit(f"Invalid theme package (bad member: {bad_member!r})")

@@ -1,7 +1,7 @@
 import { LiveDataProvider } from "@/contexts/LiveDataContext";
 import Footer from "../components/Footer";
 import NavBar from "../components/NavBar";
-import { Outlet } from "react-router-dom";
+import { Outlet, useLocation } from "react-router-dom";
 import { usePublicInfo } from "@/contexts/PublicInfoContext";
 import { useIsMobile } from "@/hooks/use-mobile";
 
@@ -9,6 +9,9 @@ const IndexLayout = () => {
   // 使用我们的LiveDataContext
   const InnerLayout = () => {
     const { publicInfo } = usePublicInfo();
+    const location = useLocation();
+    const isHome = location.pathname === "/";
+    const isInstance = location.pathname.startsWith("/instance/");
     const isMobile = useIsMobile();
     const bgUrlDesktop = publicInfo?.theme_settings?.backgroundImageUrlDesktop;
     const bgUrlMobile = publicInfo?.theme_settings?.backgroundImageUrlMobile;
@@ -35,10 +38,10 @@ const IndexLayout = () => {
               marginRight: "auto",
             }}
           >
-            <NavBar />
+            {!isInstance && <NavBar />}
             <Outlet />
           </main>
-          <Footer />
+          {!isHome && <Footer />}
         </div>
       </>
     );
