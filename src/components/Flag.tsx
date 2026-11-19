@@ -1,99 +1,94 @@
 import * as React from "react";
-import { Box } from "@radix-ui/themes";
 import { useTranslation } from "react-i18next";
 
 interface FlagProps {
-  flag: string; // 地区代码 (例如 "SG", "US") 或旗帜 emoji (例如 "🇸🇬", "🇺🇳")
-  size?: string; // 可选的尺寸 prop，用于未来扩展
+  flag?: string | null;
+  size?: string; // Tailwind spacing units (e.g. "6" = 1.5rem).
+  decorative?: boolean; // The region is already shown as adjacent text.
 }
 
-/**
- * 算法：将由两个区域指示符符号组成的 emoji 转换为对应的两字母国家代码。
- * 例如：🇸🇬 (由两个区域指示符组成) -> SG
- * @param emoji 输入的 emoji 字符串
- * @returns 转换后的两字母国家代码（例如 "SG"），如果不是有效的旗帜 emoji 则返回 null。
- */
-const getCountryCodeFromFlagEmoji = (emoji: string): string | null => {
-  // 使用 Array.from() 来正确处理 Unicode 代理对，将 emoji 字符串拆分为逻辑上的字符数组。
-  // 对于一个国家旗帜 emoji，chars 数组的长度将是 2 (每个元素是一个区域指示符字符)。
-  const chars = Array.from(emoji);
+const fallbackCode = "UN";
+const regionalIndicatorStart = 0x1f1e6;
 
-  // 国家旗帜 emoji 应该由且仅由两个区域指示符字符组成
-  if (chars.length !== 2) {
-    return null;
+// Two-letter SVG basenames in public/assets/flags. Files in public are not Vite modules.
+const regionCodes = new Set(
+  (
+    "AC AD AE AF AG AI AL AM AO AQ AR AS AT AU AW AX AZ BA BB BD BE BF BG BH BI" +
+    " " +
+    "BJ BL BM BN BO BQ BR BS BT BV BW BY BZ CA CC CD CF CG CH CI CK CL CM CN CO" +
+    " " +
+    "CP CR CU CV CW CX CY CZ DE DG DJ DK DM DO DZ EA EC EE EG EH ER ES ET EU FI" +
+    " " +
+    "FJ FK FM FO FR GA GB GD GE GF GG GH GI GL GM GN GP GQ GR GS GT GU GW GY HK" +
+    " " +
+    "HM HN HR HT HU IC ID IE IL IM IN IO IQ IR IS IT JE JM JO JP KE KG KH KI KM" +
+    " " +
+    "KN KP KR KW KY KZ LA LB LC LI LK LR LS LT LU LV LY MA MC MD ME MF MG MH MK" +
+    " " +
+    "ML MM MN MO MP MQ MR MS MT MU MV MW MX MY MZ NA NC NE NF NG NI NL NO NP NR" +
+    " " +
+    "NU NZ OM PA PE PF PG PH PK PL PM PN PR PS PT PW PY QA RE RO RS RU RW SA SB" +
+    " " +
+    "SC SD SE SG SH SI SJ SK SL SM SN SO SR SS ST SV SX SY SZ TA TC TD TF TG TH" +
+    " " +
+    "TJ TK TL TM TN TO TR TT TV TW TZ UA UG UM UN US UY UZ VA VC VE VG VI VN VU" +
+    " " +
+    "WF WS XK YE YT ZA ZM ZW"
+  ).split(" "),
+);
+
+export function getFlagRegionCode(flag?: string | null): string | null {
+  const region = typeof flag === "string" ? flag.trim() : "";
+  if (/^[a-z]{2}$/i.test(region)) {
+    const code = region.toUpperCase();
+    return regionCodes.has(code) ? code : null;
   }
 
-  // 获取两个区域指示符字符的 Unicode 码点
-  const codePoint1 = chars[0].codePointAt(0)!;
-  const codePoint2 = chars[1].codePointAt(0)!;
+  const indicators = Array.from(region);
+  if (indicators.length !== 2) return null;
+  const offsets = indicators.map(
+    (indicator) => indicator.codePointAt(0)! - regionalIndicatorStart,
+  );
+  if (!offsets.every((offset) => offset >= 0 && offset < 26)) return null;
+  const code = String.fromCharCode(...offsets.map((offset) => 65 + offset));
+  return regionCodes.has(code) ? code : null;
+}
 
-  // 区域指示符符号的 Unicode 范围是从 U+1F1E6 (🇦) 到 U+1F1FF (🇿)
-  const REGIONAL_INDICATOR_START = 0x1F1E6; // 🇦 的 Unicode 码点
-  const ASCII_ALPHA_START = 0x41; // A 的 ASCII 码点
-
-  // 检查两个码点是否都在区域指示符范围内
-  if (
-    codePoint1 >= REGIONAL_INDICATOR_START && codePoint1 <= 0x1F1FF &&
-    codePoint2 >= REGIONAL_INDICATOR_START && codePoint2 <= 0x1F1FF
-  ) {
-    // 算法转换：通过计算与 'A' 对应的区域指示符的偏移量，将区域指示符码点转换回对应的 ASCII 字母码点
-    const letter1 = String.fromCodePoint(codePoint1 - REGIONAL_INDICATOR_START + ASCII_ALPHA_START);
-    const letter2 = String.fromCodePoint(codePoint2 - REGIONAL_INDICATOR_START + ASCII_ALPHA_START);
-    return `${letter1}${letter2}`;
-  }
-
-  return null;
-};
-
-const Flag = React.memo(({ flag, size }: FlagProps) => {
-  let imgSrc: string;
-  let altText: string;
-  let resolvedFlagFileName: string; // 最终用于构建文件名的字符串 (例如 "SG", "UN")
-
-  // 1. **算法处理：** 尝试将输入作为由区域指示符组成的旗帜 emoji 进行转换
-  const countryCodeFromEmoji = getCountryCodeFromFlagEmoji(flag);
-
-  if (countryCodeFromEmoji) {
-    resolvedFlagFileName = countryCodeFromEmoji; // 例如，如果输入是 "🇸🇬"，则这里得到 "SG"
-  }
-  // 2. **直接识别：** 如果不是区域指示符 emoji，检查是否是两字母的字母组合（ISO 国家代码）
-  else if (flag && flag.length === 2 && /^[a-zA-Z]{2}$/.test(flag)) {
-    resolvedFlagFileName = flag.toUpperCase(); // 例如，如果输入是 "us"，则这里得到 "US"
-  }
-  // 3. **硬编码处理特殊 Emoji：** 对于无法通过算法转换的特殊 emoji（例如 🇺🇳, 🌐），
-  //    因为它们不符合区域指示符模式，且不使用映射表，只能通过硬编码来识别。
-  else if (flag === "🇺🇳" || flag === "🌐") {
-    resolvedFlagFileName = "UN"; // 例如，如果输入是 "🇺🇳"，则这里得到 "UN"
-  }
-  // 4. **回退：** 对于任何其他无法识别的输入（包括不符合上述规则的 emoji 或非两字母代码），
-  //    使用默认的 "UN" 旗帜作为回退。
-  else {
-    resolvedFlagFileName = "UN";
-  }
-
-  // 构建本地图片路径
-  imgSrc = `/assets/flags/${resolvedFlagFileName}.svg`;
-  // 构建 alt 文本和 aria-label
+const Flag = React.memo(({ flag, size = "6", decorative }: FlagProps) => {
   const { t } = useTranslation();
-  altText = t("common.region_flag_alt", { name: resolvedFlagFileName });
+  const code = getFlagRegionCode(flag) ?? fallbackCode;
+  const [failedCode, setFailedCode] = React.useState<string>();
+  const asset = failedCode === code ? fallbackCode : code;
+  const units = Number(size);
+  const width = Number.isFinite(units) && units > 0 ? units / 4 : 1.5;
 
   return (
-    <Box
-      as="span"
-      className={`km-flag m-2 self-center ${size ? `w-${size} h-${size}` : "w-6 h-6"}`}
-      style={{ display: "inline-flex", alignItems: "center" }}
-      aria-label={altText}
-    >
-      <img
-        src={imgSrc}
-        alt={altText}
-        style={{ width: "100%", height: "100%", objectFit: "contain" }}
-      />
-    </Box>
+    <img
+      className="km-flag"
+      src={`/assets/flags/${asset}.svg`}
+      alt={
+        decorative
+          ? ""
+          : t("common.region_flag_alt", {
+              name:
+                typeof flag === "string"
+                  ? flag.trim() || fallbackCode
+                  : fallbackCode,
+            })
+      }
+      onError={asset === fallbackCode ? undefined : () => setFailedCode(code)}
+      style={{
+        display: "block",
+        width: `var(--km-flag-width, ${width}rem)`,
+        height: `var(--km-flag-height, ${width}rem)`,
+        objectFit: "contain",
+        flexShrink: 0,
+        margin: 0,
+      }}
+    />
   );
 });
 
-// 确保 displayName 以便在 React DevTools 中识别
 Flag.displayName = "Flag";
 
 export default Flag;

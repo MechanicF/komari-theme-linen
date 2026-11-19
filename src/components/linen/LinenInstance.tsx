@@ -24,7 +24,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import Flag from "@/components/Flag";
+import Flag, { getFlagRegionCode } from "@/components/Flag";
 import { useLiveData } from "@/contexts/LiveDataContext";
 import { useNodeList } from "@/contexts/NodeListContext";
 import { useRPC2Call } from "@/contexts/RPC2Context";
@@ -308,7 +308,7 @@ function HistoryChart({
                   type="linear"
                   stroke={index ? "var(--warm)" : "var(--sage)"}
                   strokeWidth={1.8}
-                  dot={samples < 3 ? { r: 3 } : false}
+                  dot={{ r: 2, strokeWidth: 0 }}
                   activeDot={{ r: 4 }}
                   connectNulls={false}
                   isAnimationActive={false}
@@ -495,19 +495,21 @@ export default function LinenInstance({ uuid }: { uuid: string }) {
     ? "pending"
     : !showCallout
       ? "disconnected"
-      : !online
-        ? "offline"
-        : !raw || !Number.isFinite(sampledAt)
-          ? "missing"
-          : !fresh
-            ? "stale"
-            : "online";
+      : !raw || typeof raw.online !== "boolean"
+        ? "missing"
+        : !online
+          ? "offline"
+          : !Number.isFinite(sampledAt)
+            ? "missing"
+            : !fresh
+              ? "stale"
+              : "online";
   const current = state === "online" ? raw : undefined;
   const status = {
     pending: en ? "Connecting" : "实时尚未就绪",
     disconnected: en ? "Connection interrupted" : "实时连接中断",
     offline: en ? "Offline" : "离线",
-    missing: en ? "Awaiting sample" : "在线 · 等待采样",
+    missing: en ? "Awaiting sample" : "等待采样",
     stale: en ? "Sample stale" : "在线 · 样本已过期",
     online: en ? "Online" : "在线",
   }[state];
@@ -540,7 +542,7 @@ export default function LinenInstance({ uuid }: { uuid: string }) {
           <Server size={30} />
           <h1>{en ? "Loading node…" : "正在读取节点…"}</h1>
         </div>
-      ) : error || !node ? (
+      ) : !node ? (
         <div className="linen-instance-empty" role="alert">
           <Server size={30} />
           <h1>
@@ -568,10 +570,23 @@ export default function LinenInstance({ uuid }: { uuid: string }) {
         </div>
       ) : (
         <>
+          {error && (
+            <div className="linen-instance-notice" role="status">
+              <Info size={16} />
+              <span>
+                {en
+                  ? "Node information refresh failed. Showing previously loaded metadata."
+                  : "节点资料刷新失败，保留上次已加载资料。"}
+              </span>
+              <button type="button" onClick={refresh}>
+                {en ? "Retry" : "重试"}
+              </button>
+            </div>
+          )}
           <section className="linen-instance-hero">
             <div className="linen-instance-identity">
               <span className="linen-instance-avatar">
-                <Flag flag={node.region} />
+                <Flag flag={node.region} decorative />
               </span>
               <div>
                 <span className="linen-instance-eyebrow">
@@ -580,7 +595,9 @@ export default function LinenInstance({ uuid }: { uuid: string }) {
                 </span>
                 <h1>{node.name || (en ? "Unnamed node" : "未命名节点")}</h1>
                 <p>
-                  {node.region || (en ? "Unknown region" : "未知地区")}
+                  {getFlagRegionCode(node.region) ||
+                    node.region ||
+                    (en ? "Unknown region" : "未知地区")}
                   <i>·</i>
                   {node.os || (en ? "Unknown OS" : "未知系统")}
                   <i>·</i>

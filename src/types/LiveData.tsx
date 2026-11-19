@@ -1,9 +1,10 @@
 export type LiveData = {
-    online: string[];
-    data: { [key: string]: Record };
+  online: string[];
+  data: { [key: string]: Record };
 };
 
 export type Record = {
+  online?: boolean;
   cpu: {
     usage: number;
   };

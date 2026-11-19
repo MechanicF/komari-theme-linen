@@ -10,9 +10,9 @@ await mkdir(out, { recursive: true });
 const GiB = 1024 ** 3;
 const identities = [
   ["demo-tokyo", "Tokyo · Edge", "JP", "亚洲", 22],
-  ["demo-singapore", "Singapore · Core", "SG", "亚洲", 91],
-  ["demo-frankfurt", "Frankfurt · Relay", "DE", "欧洲", 0],
-  ["demo-helsinki", "Helsinki · Archive", "FI", "欧洲", 14],
+  ["demo-singapore", "Singapore · Core", "🇸🇬", "亚洲", 91],
+  ["demo-frankfurt", "Frankfurt · Relay", "ZZ", "欧洲", 0],
+  ["demo-helsinki", "Helsinki · Archive", null, "欧洲", 14],
 ];
 const nodes = Object.fromEntries(
   identities.map(([uuid, name, region, group]) => [
@@ -42,39 +42,111 @@ const nodes = Object.fromEntries(
     },
   ]),
 );
-const makeLive = () =>
-  Object.fromEntries(
-    identities.map(([uuid, , , , cpu], i) => [
+const layoutNodes = Object.fromEntries(
+  Object.entries(nodes).map(([uuid, node]) => {
+    if (uuid === "demo-tokyo")
+      return [
+        uuid,
+        {
+          ...node,
+          name: "A deliberately long infrastructure node name that must wrap without widening the card",
+          region: "ZZ",
+          group: "A deliberately long operations group name",
+        },
+      ];
+    if (uuid === "demo-singapore")
+      return [
+        uuid,
+        {
+          ...node,
+          name: "🇨🇦 Emoji flag node / long label for responsive card layout",
+          region: "🇨🇦",
+          group: "",
+        },
+      ];
+    if (uuid === "demo-frankfurt")
+      return [
+        uuid,
+        {
+          ...node,
+          name: "Frankfurt · disconnected Relay",
+          region: null,
+          group: "Operations / One",
+        },
+      ];
+    return [
       uuid,
       {
-        client: uuid,
-        online: i !== 2,
-        cpu,
-        ram: (i === 1 ? 7.3 : 2 + i / 2) * GiB,
-        disk: (20 + i * 7) * GiB,
-        load: 0.2 + i / 4,
-        load5: 0.3,
-        load15: 0.2,
-        net_in: 1540000 + i * 238000,
-        net_out: 63000 + i * 10000,
-        net_total_in: 102 * GiB,
-        net_total_out: 12 * GiB,
-        uptime: 86400 * 12 + 7200,
-        connections: 45,
-        connections_udp: 8,
-        process: 122,
-        time: new Date(
-          Date.now() - (scenario === "stale" ? 60000 : 0),
-        ).toISOString(),
+        ...node,
+        name: "Helsinki · Archive",
+        region: "🇯🇵",
+        group: "Operations / Two",
       },
-    ]),
+    ];
+  }),
+);
+const makeLive = () => {
+  const sourceNodes = scenario === "layout" ? layoutNodes : nodes;
+  const live = Object.fromEntries(
+    Object.keys(sourceNodes).map((uuid, i) => {
+      const cpu = identities.find(([id]) => id === uuid)?.[4] ?? 36;
+      return [
+        uuid,
+        {
+          client: uuid,
+          online: uuid !== "demo-frankfurt",
+          cpu:
+            scenario === "missing" && uuid === "demo-singapore"
+              ? undefined
+              : cpu,
+          ram: (i === 1 ? 7.3 : 2 + i / 2) * GiB,
+          disk: (20 + i * 7) * GiB,
+          load: 0.2 + i / 4,
+          load5: 0.3,
+          load15: 0.2,
+          net_in:
+            scenario === "missing" && uuid === "demo-singapore"
+              ? undefined
+              : scenario === "invalid-network"
+                ? -1
+                : 1540000 + i * 238000,
+          net_out:
+            scenario === "missing" && uuid === "demo-singapore"
+              ? undefined
+              : scenario === "invalid-network"
+                ? "NaN"
+                : 63000 + i * 10000,
+          net_total_in:
+            scenario === "missing" && uuid === "demo-singapore"
+              ? undefined
+              : scenario === "invalid-network"
+                ? -1
+                : 102 * GiB,
+          net_total_out:
+            scenario === "missing" && uuid === "demo-singapore"
+              ? undefined
+              : scenario === "invalid-network"
+                ? "Infinity"
+                : 12 * GiB,
+          uptime: 86400 * 12 + 7200,
+          connections: 45,
+          connections_udp: 8,
+          process: 122,
+          time: new Date(
+            Date.now() - (scenario === "stale" ? 60000 : 0),
+          ).toISOString(),
+        },
+      ];
+    }),
   );
+  return live;
+};
 const publicInfo = {
   sitename: "Linen / 示例监控",
   description: "界面演示 · 样例数据",
   private_site: false,
   theme: "Linen",
-  theme_settings: { mainContentWidth: 100 },
+  theme_settings: { mainContentWidth: 100, showPrioritySection: true },
   custom_head: "",
   custom_body: "",
 };
@@ -83,7 +155,11 @@ const methodCalls = [];
 const resultFor = (req) => {
   methodCalls.push({ method: req.method, hours: req.params?.hours });
   if (req.method === "common:getNodes")
-    return scenario === "empty" ? {} : nodes;
+    return scenario === "empty"
+      ? {}
+      : scenario === "layout"
+        ? layoutNodes
+        : nodes;
   if (req.method === "common:getNodesLatestStatus") return makeLive();
   if (req.method.includes("Version")) return { version: "1.6.1", hash: "demo" };
   if (req.method === "public:queryMetrics") {
@@ -101,15 +177,17 @@ const resultFor = (req) => {
         points: Array.from({ length: 61 }, (_, i) => ({
           time: new Date(start + ((end - start) * i) / 60).toISOString(),
           value:
-            i > 24 && i < 29
+            scenario === "sparse" && ![0, 30, 60].includes(i)
               ? null
-              : key === "cpu.usage"
-                ? 22 + Math.sin(i / 5) * 8
-                : key === "memory.used"
-                  ? (3 + Math.sin(i / 9) * 0.2) * GiB
-                  : key === "disk.used"
-                    ? 25 * GiB
-                    : 300000 + Math.sin(i / 3 + j) * 100000,
+              : i > 24 && i < 29
+                ? null
+                : key === "cpu.usage"
+                  ? 22 + Math.sin(i / 5) * 8
+                  : key === "memory.used"
+                    ? (3 + Math.sin(i / 9) * 0.2) * GiB
+                    : key === "disk.used"
+                      ? 25 * GiB
+                      : 300000 + Math.sin(i / 3 + j) * 100000,
         })),
       })),
     };
@@ -117,17 +195,33 @@ const resultFor = (req) => {
   return [];
 };
 const respond = (req) =>
-  scenario === "disconnected" && req.method === "common:getNodesLatestStatus"
+  scenario === "permission-denied" && req.method === "common:getNodes"
     ? {
         jsonrpc: "2.0",
         id: req.id,
-        error: { code: -32000, message: "Simulated telemetry disconnect" },
+        error: { code: 403, message: "Access denied" },
       }
-    : {
-        jsonrpc: "2.0",
-        id: req.id,
-        result: resultFor(req),
-      };
+    : scenario === "list-failure" && req.method === "common:getNodes"
+      ? {
+          jsonrpc: "2.0",
+          id: req.id,
+          error: {
+            code: -32000,
+            message: "Simulated node-list refresh failure",
+          },
+        }
+      : scenario === "disconnected" &&
+          req.method === "common:getNodesLatestStatus"
+        ? {
+            jsonrpc: "2.0",
+            id: req.id,
+            error: { code: -32000, message: "Simulated telemetry disconnect" },
+          }
+        : {
+            jsonrpc: "2.0",
+            id: req.id,
+            result: resultFor(req),
+          };
 const browser = await chromium.launch({
   headless: true,
   args: ["--no-sandbox"],
@@ -188,7 +282,48 @@ try {
   await page.locator(".linen-node-row").nth(3).waitFor();
   assert.equal(await page.locator(".linen-node-row").count(), 4);
   assert.match(await page.locator(".linen-health-ring").innerText(), /75/);
-  report.push("4 nodes; 75% instantaneous online rate");
+  assert.equal(await page.locator(".linen-attention").count(), 1);
+  assert.equal(
+    await page
+      .locator(".linen-network-overview article.linen-network-stat")
+      .count(),
+    3,
+  );
+  assert.equal(
+    await page.locator('[data-metric="speed-down"]').innerText(),
+    "5.31 MB/s",
+  );
+  assert.equal(
+    await page.locator('[data-metric="speed-up"]').innerText(),
+    "223.6 KB/s",
+  );
+  assert.equal(
+    await page.locator('[data-metric="total-down"]').innerText(),
+    "408.00 GB",
+  );
+  assert.equal(
+    await page.locator('[data-metric="total-up"]').innerText(),
+    "48.00 GB",
+  );
+  assert.equal(
+    await page.locator('[data-metric="total-transfer"]').innerText(),
+    "456.00 GB",
+  );
+  assert.match(
+    await page
+      .locator("[data-network=live] .linen-network-stat__note")
+      .innerText(),
+    /3\/4/,
+  );
+  assert.match(
+    await page
+      .locator("[data-network=counters] .linen-network-stat__note")
+      .innerText(),
+    /含离线节点最后上报值/,
+  );
+  report.push(
+    "3 network stats: fresh online rates, offline last-reported counters, total transfer",
+  );
   await page.getByRole("button", { name: /^离线/ }).click();
   assert.equal(await page.locator(".linen-node-row").count(), 1);
   assert.match(await page.locator(".linen-node-row").innerText(), /Frankfurt/);
@@ -216,10 +351,86 @@ try {
   await page.getByRole("button", { name: "卡片视图", exact: true }).click();
   assert.equal(await page.locator(".linen-node-list.is-grid").count(), 1);
   await page.getByRole("button", { name: "列表视图", exact: true }).click();
+  publicInfo.theme_settings.showPrioritySection = false;
+  await page.reload({ waitUntil: "networkidle" });
+  await page.locator(".linen-node-row").nth(3).waitFor();
+  assert.equal(await page.locator(".linen-attention").count(), 0);
+  assert.equal(await page.locator(".linen-workspace.is-fullwidth").count(), 1);
+  await page.getByRole("button", { name: /^离线/ }).click();
+  assert.equal(await page.locator(".linen-node-row").count(), 1);
+  await page.getByRole("button", { name: /^全部节点/ }).click();
+  publicInfo.theme_settings.showPrioritySection = true;
+  await page.reload({ waitUntil: "networkidle" });
+  await page.locator(".linen-node-row").nth(3).waitFor();
+  assert.equal(await page.locator(".linen-attention").count(), 1);
+  assert.equal(await page.locator(".linen-workspace.is-fullwidth").count(), 0);
+  scenario = "list-failure";
+  await page.locator(".linen-refresh").click();
+  await page.locator(".linen-error").waitFor();
+  assert.equal(await page.locator(".linen-node-row").count(), 4);
+  scenario = "permission-denied";
+  await page.locator(".linen-refresh").click();
+  await page.waitForFunction(
+    () => document.querySelectorAll(".linen-node-row").length === 0,
+  );
+  scenario = "normal";
+  await page.reload({ waitUntil: "networkidle" });
+  assert.equal(await page.locator(".linen-node-row").count(), 4);
+  report.push(
+    "permission denial clears cached inventory; transient failures retain it",
+  );
+  scenario = "missing";
+  await page.goto(base, { waitUntil: "networkidle" });
+  await page.locator(".linen-node-row").nth(3).waitFor();
+  const missingSingapore = page.locator(".linen-node-row", {
+    hasText: "Singapore",
+  });
+  assert.equal(
+    (
+      await missingSingapore.locator(".linen-metric__value").allTextContents()
+    )[0],
+    "—",
+  );
+  assert.match(
+    await page
+      .locator("[data-network=live] .linen-network-stat__note")
+      .innerText(),
+    /2\/4/,
+  );
+  assert.doesNotMatch(
+    await page.locator(".linen-network-overview").innerText(),
+    /NaN|Infinity/,
+  );
+  assert.doesNotMatch(
+    await page.locator("[data-network=counters]").innerText(),
+    /NaN|Infinity/,
+  );
+  scenario = "invalid-network";
+  await page.reload({ waitUntil: "networkidle" });
+  const invalidNetwork = await page
+    .locator(".linen-network-overview [data-metric]")
+    .allTextContents();
+  assert.ok(
+    invalidNetwork.every((value) => value === "—"),
+    invalidNetwork.join(" | "),
+  );
+  assert.doesNotMatch(
+    await page.locator(".linen-network-overview").innerText(),
+    /NaN|Infinity/,
+  );
+  scenario = "normal";
+  await page.reload({ waitUntil: "networkidle" });
+  report.push(
+    "missing CPU/network fields and negative/non-finite network values render —, never NaN/Infinity",
+  );
+  report.push(
+    "priority section true/false and full-width workspace; filters and stale inventory on failed refresh",
+  );
   report.push(
     "status, group, search, CPU sort, list/grid, offline missing readings",
   );
   const metrics = async () => {
+    await page.waitForTimeout(50);
     await page.evaluate(
       () =>
         new Promise((resolve) =>
@@ -235,6 +446,114 @@ try {
         .slice(0, 12),
     }));
   };
+  const avatarOverflows = async (selector) =>
+    page.locator(selector + " img").evaluateAll((images) =>
+      images.flatMap((image) => {
+        const avatar = image.parentElement;
+        if (!avatar) return ["missing avatar parent"];
+        const imageRect = image.getBoundingClientRect();
+        const avatarRect = avatar.getBoundingClientRect();
+        return imageRect.left < avatarRect.left - 1 ||
+          imageRect.right > avatarRect.right + 1 ||
+          imageRect.top < avatarRect.top - 1 ||
+          imageRect.bottom > avatarRect.bottom + 1
+          ? [{ image: imageRect.toJSON(), avatar: avatarRect.toJSON() }]
+          : [];
+      }),
+    );
+  scenario = "layout";
+  await page.reload({ waitUntil: "networkidle" });
+  assert.equal(await page.locator(".linen-node-row").count(), 4);
+  assert.match(
+    (await page.locator(".linen-node-row").allTextContents()).join(" "),
+    /deliberately long/,
+  );
+  assert.ok(
+    (await page.locator('.linen-node-avatar img[src*="/UN.svg"]').count()) >= 1,
+  );
+  assert.ok(
+    (await page.locator('.linen-node-avatar img[src*="/CA.svg"]').count()) >= 1,
+  );
+  await page
+    .locator(".linen-group-tabs button", {
+      hasText: "A deliberately long operations group name",
+    })
+    .click();
+  assert.equal(await page.locator(".linen-node-row").count(), 1);
+  await page.locator(".km-theme-switch").click();
+  await page.getByRole("menuitem", { name: "深色" }).click();
+  assert.equal(await page.locator(".linen-node-row").count(), 1);
+  await page.locator(".km-color-switch").click();
+  await page.getByRole("menuitem", { name: "蓝色", exact: true }).click();
+  assert.equal(await page.locator(".linen-node-row").count(), 1);
+  await page.locator(".km-theme-switch").click();
+  await page.getByRole("menuitem", { name: "浅色" }).click();
+  await page.locator(".km-color-switch").click();
+  await page.getByRole("menuitem", { name: "草绿色" }).click();
+  assert.equal(await page.locator(".linen-node-row").count(), 1);
+  await page
+    .locator(".linen-group-tabs button", { hasText: "全部分组" })
+    .click();
+  await page.locator(".linen-group-tabs button", { hasText: "未分组" }).click();
+  assert.equal(await page.locator(".linen-node-row").count(), 1);
+  await page.locator(".km-language-switch").click();
+  await page.getByRole("menuitem", { name: /English/ }).click();
+  assert.equal(await page.locator(".linen-node-row").count(), 1);
+  assert.equal(
+    await page.locator(".linen-group-tabs .is-active").innerText(),
+    "Ungrouped",
+  );
+  await page.locator(".km-language-switch").click();
+  await page.getByRole("menuitem").filter({ hasText: "中文" }).first().click();
+  await page
+    .locator(".linen-group-tabs button", { hasText: "全部分组" })
+    .click();
+  publicInfo.sitename = "Long monitoring site name / ".repeat(7);
+  await page.locator(".linen-refresh").click();
+  await page.waitForFunction(() =>
+    document
+      .querySelector(".linen-nav__brand-copy strong")
+      ?.textContent?.startsWith("Long monitoring"),
+  );
+  report.push(
+    "ungrouped filter survives English switch; long site/group/node names",
+  );
+  const widths = [320, 360, 390, 768, 1024, 1440];
+  for (const mode of ["列表视图", "卡片视图"]) {
+    await page.getByRole("button", { name: mode, exact: true }).click();
+    for (const width of widths) {
+      await page.setViewportSize({ width, height: 900 });
+      const layout = await metrics();
+      const trafficVisible = await page
+        .locator(".linen-node-row__traffic")
+        .evaluateAll((items) =>
+          items.every(
+            (item) =>
+              getComputedStyle(item).display !== "none" &&
+              item.getBoundingClientRect().width > 0,
+          ),
+        );
+      assert.ok(
+        trafficVisible,
+        "node transfer rates hidden at " + width + "px / " + mode,
+      );
+      assert.ok(layout.scrollWidth <= width + 2, JSON.stringify(layout));
+      assert.ok(
+        await page.locator(".linen-network-overview").isVisible(),
+        `network overview hidden at ${width}px / ${mode}`,
+      );
+      assert.equal(
+        (await avatarOverflows(".linen-node-avatar")).length,
+        0,
+        `node flag overflows at ${width}px / ${mode}`,
+      );
+    }
+  }
+  await page.getByRole("button", { name: "列表视图", exact: true }).click();
+  scenario = "normal";
+  publicInfo.sitename = "Linen / 示例监控";
+  await page.reload({ waitUntil: "networkidle" });
+  await page.setViewportSize({ width: 1440, height: 1000 });
   const desktop = await metrics();
   assert.ok(desktop.scrollWidth <= desktop.width + 2, JSON.stringify(desktop));
   await page.screenshot({ path: out + "/preview-desktop.png", fullPage: true });
@@ -251,6 +570,8 @@ try {
   await page.waitForSelector("html.dark");
   await page.screenshot({ path: out + "/preview-dark.png", fullPage: true });
   report.push("desktop/mobile fit; mobile login visible; dark mode");
+  scenario = "normal";
+  publicInfo.sitename = "Linen / 示例监控";
   await page.evaluate(() =>
     localStorage.setItem("appearance", JSON.stringify("light")),
   );
@@ -276,8 +597,26 @@ try {
     detailMobile.scrollWidth <= detailMobile.width + 2,
     JSON.stringify(detailMobile),
   );
+  assert.equal(
+    (await avatarOverflows(".linen-instance-avatar")).length,
+    0,
+    "instance flag overflows at 390px",
+  );
+  for (const width of [320, 360, 390, 768, 1024, 1440]) {
+    await page.setViewportSize({ width, height: 900 });
+    const detailLayout = await metrics();
+    assert.ok(
+      detailLayout.scrollWidth <= width + 2,
+      JSON.stringify(detailLayout),
+    );
+    assert.equal(
+      (await avatarOverflows(".linen-instance-avatar")).length,
+      0,
+      "instance flag overflows",
+    );
+  }
   report.push(
-    "independent detail route; four historical charts; 6h selector; mobile fit",
+    "independent detail route; four historical charts; 6h selector; mobile fit; instance avatar bounds",
   );
   await page.goto(base + "/instance/demo-frankfurt", {
     waitUntil: "networkidle",
@@ -287,8 +626,26 @@ try {
     /离线/,
   );
   assert.equal(
+    await page.locator('.linen-instance-avatar img[src*="/UN.svg"]').count(),
+    1,
+  );
+  assert.equal(
     await page.locator(".linen-instance-stat>strong").first().innerText(),
     "—",
+  );
+  scenario = "sparse";
+  await page.goto(base + "/instance/demo-tokyo", { waitUntil: "networkidle" });
+  await page.locator(".linen-instance-chart__plot").first().waitFor();
+  assert.equal(
+    await page
+      .locator(".linen-instance-chart__plot")
+      .first()
+      .locator("circle.recharts-line-dot")
+      .count(),
+    3,
+  );
+  report.push(
+    "three isolated history samples remain visible as dots with gaps",
   );
   scenario = "stale";
   await page.goto(base, { waitUntil: "networkidle" });

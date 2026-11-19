@@ -94,6 +94,7 @@ export function stringToBytes(str: string): number | null {
 }
 
 export function formatBytes(bytes: number): string {
+  if (!Number.isFinite(bytes) || bytes < 0) return "—";
   const units = ["B", "KB", "MB", "GB", "TB", "PB"];
   let size = bytes;
   let unitIndex = 0;
@@ -106,7 +107,7 @@ export function formatBytes(bytes: number): string {
   if (unitIndex === 0) {
     // 单位为B，不显示小数
     return `${Math.round(size)} ${units[unitIndex]}`;
-  } else if (unitIndex >= 2 && bytes >= 1024**3) {
+  } else if (unitIndex >= 2 && bytes >= 1024 ** 3) {
     return `${size.toFixed(2)} ${units[unitIndex]}`;
   } else if (size > 99.99) {
     return `${size.toFixed(1)} ${units[unitIndex]}`;

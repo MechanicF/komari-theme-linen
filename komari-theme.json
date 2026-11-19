@@ -8,7 +8,7 @@
     "zh-CN": "原创节点运行台布局，包含可用率总览、待关注队列和可筛选的节点资源清单。",
     "en": "An original node-operations dashboard with availability, attention queue, and filterable capacity inventory."
   },
-  "version": "2.0.0",
+  "version": "2.1.0",
   "author": "MechanicF",
   "preview": "preview.png",
   "configuration": {
@@ -18,6 +18,19 @@
       "en": "Linen theme settings"
     },
     "data": [
+      {
+        "key": "showPrioritySection",
+        "type": "switch",
+        "default": true,
+        "name": {
+          "zh-CN": "显示优先查看",
+          "en": "Show priority queue"
+        },
+        "help": {
+          "zh-CN": "显示首页左侧优先查看/待关注区域；关闭后节点清单占满可用宽度，状态筛选不受影响。",
+          "en": "Show the homepage priority/attention sidebar. Disabling it expands inventory without changing status filters."
+        }
+      },
       {
         "key": "backgroundImageUrlDesktop",
         "type": "string",

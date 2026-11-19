@@ -116,6 +116,8 @@
   min-width: 0;
 }
 .linen-instance-avatar {
+  --km-flag-width: 31px;
+  --km-flag-height: 24px;
   display: grid;
   place-items: center;
   background: var(--surface);

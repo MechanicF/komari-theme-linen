@@ -30,9 +30,10 @@ import type {
 import { useLiveData } from "@/contexts/LiveDataContext";
 import { useNodeList } from "@/contexts/NodeListContext";
 import { usePublicInfo } from "@/contexts/PublicInfoContext";
-import Flag from "@/components/Flag";
+import Flag, { getFlagRegionCode } from "@/components/Flag";
 import { formatBytes } from "@/utils/unitHelper";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
+import { summarizeNetwork, validCounter } from "./linenNetwork";
 import "./LinenDashboard.css";
 
 const EMPTY_LIVE: LiveSnapshot = { online: [], data: {} };
@@ -51,13 +52,13 @@ type NodeState = {
   attention: boolean;
 };
 const percent = (used?: number, total?: number) =>
-  !Number.isFinite(used) || !Number.isFinite(total) || !total || total <= 0
+  !validCounter(used) || !validCounter(total) || !total || total <= 0
     ? null
     : Math.max(0, Math.min(100, (used! / total!) * 100));
 const fmtPercent = (value: number | null) =>
-  value === null ? "—" : Math.round(value) + "%";
-const fmtSpeed = (value?: number) =>
-  Number.isFinite(value) ? formatBytes(value || 0) + "/s" : "—";
+  !validCounter(value) ? "—" : Math.round(value) + "%";
+const fmtSpeed = (value?: number | null) =>
+  validCounter(value) ? formatBytes(value) + "/s" : "—";
 const dateTime = (value?: string) => {
   if (!value) return "—";
   const date = new Date(value);
@@ -69,12 +70,22 @@ const dateTime = (value?: string) => {
         second: "2-digit",
       }).format(date);
 };
-const uptime = (seconds?: number) => {
-  if (!seconds || seconds < 0) return "—";
+const uptime = (seconds: number | undefined, en: boolean) => {
+  if (!validCounter(seconds)) return "—";
   const d = Math.floor(seconds / 86400);
   const h = Math.floor((seconds % 86400) / 3600);
   const m = Math.floor((seconds % 3600) / 60);
-  return d ? d + "天 " + h + "小时" : h ? h + "小时 " + m + "分" : m + "分钟";
+  return en
+    ? d
+      ? d + "d " + h + "h"
+      : h
+        ? h + "h " + m + "m"
+        : m + "m"
+    : d
+      ? d + "天 " + h + "小时"
+      : h
+        ? h + "小时 " + m + "分"
+        : m + "分钟";
 };
 function issueFor(
   sampleKnown: boolean,
@@ -181,7 +192,7 @@ function NodeIdentity({ state, en }: { state: NodeState; en: boolean }) {
     <div className="linen-node-identity">
       <span className={"linen-state-dot is-" + stateClass} aria-hidden="true" />
       <span className="linen-node-avatar">
-        <Flag flag={state.node.region} />
+        <Flag flag={state.node.region} decorative />
       </span>
       <span className="linen-node-title-wrap">
         <Link className="linen-node-title" to={"/instance/" + state.node.uuid}>
@@ -189,7 +200,9 @@ function NodeIdentity({ state, en }: { state: NodeState; en: boolean }) {
         </Link>
         <span className="linen-node-meta">
           <span>
-            {state.node.region || (en ? "Unknown region" : "未知地区")}
+            {getFlagRegionCode(state.node.region) ||
+              state.node.region ||
+              (en ? "Unknown region" : "未知地区")}
           </span>
           <i>·</i>
           <span>{state.node.group || (en ? "Ungrouped" : "未分组")}</span>
@@ -263,11 +276,13 @@ function NodeRow({ state, en }: { state: NodeState; en: boolean }) {
       <div className="linen-node-row__footer">
         <span>
           <Clock3 size={13} />
-          {en ? "Up" : "运行"} {uptime(record?.uptime)}
+          {en ? "Up" : "运行"} {uptime(record?.uptime, en)}
         </span>
         <span>
           {en ? "1m load" : "1 分钟负载"}{" "}
-          {record ? record.load.load1.toFixed(2) : "—"}
+          {validCounter(record?.load.load1)
+            ? record.load.load1.toFixed(2)
+            : "—"}
         </span>
         <Link className="linen-detail-link" to={"/instance/" + state.node.uuid}>
           <span>{en ? "Details" : "节点详情"}</span>
@@ -320,9 +335,15 @@ function Callouts() {
 function DashboardContent() {
   const { i18n } = useTranslation();
   const en = (i18n.resolvedLanguage || i18n.language || "zh").startsWith("en");
-  const { live_data, showCallout } = useLiveData();
+  const { live_data, showCallout, refresh: refreshLive } = useLiveData();
   const { nodeList, isLoading, error, refresh } = useNodeList();
-  const { publicInfo } = usePublicInfo();
+  const { publicInfo, refresh: refreshPublic } = usePublicInfo();
+  const prioritySetting = publicInfo?.theme_settings?.showPrioritySection;
+  const showPrioritySection =
+    prioritySetting !== false &&
+    prioritySetting !== "false" &&
+    prioritySetting !== 0 &&
+    prioritySetting !== "0";
   const [filter, setFilter] = useState<Filter>("all");
   const [group, setGroup] = useState("all");
   const [query, setQuery] = useState("");
@@ -357,11 +378,15 @@ function DashboardContent() {
         const reportedOnline = online.has(node.uuid);
         const fresh = Number.isFinite(stamp) && Math.abs(now - stamp) < 30000;
         const sampleKnown =
-          liveReady && (!reportedOnline || (record !== undefined && fresh));
+          liveReady &&
+          record !== undefined &&
+          typeof record.online === "boolean" &&
+          (!reportedOnline || fresh);
         const isOnline = sampleKnown && reportedOnline;
         const stale =
           liveReady && reportedOnline && record !== undefined && !fresh;
-        const cpu = isOnline && record ? record.cpu.usage : null;
+        const cpu =
+          isOnline && validCounter(record?.cpu.usage) ? record.cpu.usage : null;
         const memory =
           isOnline && record ? percent(record.ram.used, node.mem_total) : null;
         const disk =
@@ -395,17 +420,23 @@ function DashboardContent() {
       }),
     [live.data, liveReady, nodeList, online, now, showCallout, live_data],
   );
-  const groups = useMemo(
-    () =>
-      Array.from(
-        new Set(
-          stateList.map(
-            ({ node }) => node.group?.trim() || (en ? "Ungrouped" : "未分组"),
-          ),
-        ),
-      ).sort((a, b) => a.localeCompare(b)),
-    [en, stateList],
-  );
+  const groups = useMemo(() => {
+    const entries = new Map<string, string>();
+    for (const { node } of stateList) {
+      const value = typeof node.group === "string" ? node.group.trim() : "";
+      entries.set(
+        value ? "group:" + value : "ungrouped",
+        value || (en ? "Ungrouped" : "未分组"),
+      );
+    }
+    return Array.from(entries, ([id, label]) => ({ id, label })).sort((a, b) =>
+      a.label.localeCompare(b.label),
+    );
+  }, [en, stateList]);
+  useEffect(() => {
+    if (group !== "all" && !groups.some((item) => item.id === group))
+      setGroup("all");
+  }, [group, groups]);
   const onlineCount = liveReady
     ? stateList.filter((item) => item.online).length
     : 0;
@@ -422,15 +453,23 @@ function DashboardContent() {
   const cpuMean = cpuValues.length
     ? cpuValues.reduce((sum, item) => sum + item, 0) / cpuValues.length
     : null;
-  const ramUsed = stateList.reduce(
+  const memoryStates = stateList.filter(
+    (item) =>
+      item.online &&
+      validCounter(item.record?.ram.used) &&
+      validCounter(item.node.mem_total) &&
+      item.node.mem_total > 0,
+  );
+  const ramUsed = memoryStates.reduce(
     (sum, item) =>
       sum + (item.online && item.record ? item.record.ram.used : 0),
     0,
   );
-  const ramTotal = stateList.reduce(
+  const ramTotal = memoryStates.reduce(
     (sum, item) => sum + (item.online ? item.node.mem_total || 0 : 0),
     0,
   );
+  const network = useMemo(() => summarizeNetwork(stateList), [stateList]);
   const latest = stateList.reduce<string | undefined>((value, item) => {
     const next = item.record?.updated_at;
     return !next ||
@@ -450,8 +489,9 @@ function DashboardContent() {
               ? item.online
               : item.sampleKnown && !item.online);
         const groupName =
-          item.node.group?.trim() || (en ? "Ungrouped" : "未分组");
-        const matchGroup = group === "all" || groupName === group;
+          typeof item.node.group === "string" ? item.node.group.trim() : "";
+        const groupId = groupName ? "group:" + groupName : "ungrouped";
+        const matchGroup = group === "all" || groupId === group;
         const terms = [
           item.node.name,
           item.node.region,
@@ -483,17 +523,14 @@ function DashboardContent() {
         );
       });
   }, [en, filter, group, query, sort, stateList]);
-  useEffect(() => {
-    const timer = window.setInterval(() => {
-      if (!document.hidden) refresh();
-    }, 30000);
-    return () => window.clearInterval(timer);
-  }, [refresh]);
-  const onRefresh = () => {
+  const onRefresh = async () => {
     if (refreshing) return;
     setRefreshing(true);
-    refresh();
-    window.setTimeout(() => setRefreshing(false), 650);
+    try {
+      await Promise.all([refresh(), refreshLive(), refreshPublic()]);
+    } finally {
+      setRefreshing(false);
+    }
   };
   const text = (zh: string, english: string) => (en ? english : zh);
   const title = publicInfo?.sitename || text("节点运行台", "Node operations");
@@ -551,6 +588,7 @@ function DashboardContent() {
           <button
             className="linen-refresh"
             type="button"
+            disabled={refreshing}
             onClick={onRefresh}
             aria-label={text("刷新节点", "Refresh nodes")}
           >
@@ -600,12 +638,20 @@ function DashboardContent() {
               <span
                 className={
                   "linen-health-label " +
-                  (!liveReady || waitingCount > 0 || offlineCount > 0
+                  (!liveReady ||
+                  stateList.length === 0 ||
+                  waitingCount > 0 ||
+                  offlineCount > 0
                     ? "is-warn"
                     : "is-good")
                 }
               >
-                {!liveReady ? (
+                {stateList.length === 0 ? (
+                  <>
+                    <Server size={13} />
+                    {text("暂无节点", "No nodes")}
+                  </>
+                ) : !liveReady ? (
                   <>
                     <Activity size={13} />
                     {text("等待首批采样", "Waiting for telemetry")}
@@ -623,7 +669,7 @@ function DashboardContent() {
                 ) : (
                   <>
                     <Check size={13} />
-                    {text("运行平稳", "All systems steady")}
+                    {text("全部在线", "All nodes online")}
                   </>
                 )}
               </span>
@@ -661,7 +707,7 @@ function DashboardContent() {
             {text("已用内存", "MEMORY USED")}
           </span>
           <strong>
-            {liveReady && cpuValues.length ? formatBytes(ramUsed) : "—"}
+            {liveReady && memoryStates.length ? formatBytes(ramUsed) : "—"}
           </strong>
           <small>
             {liveReady && ramTotal
@@ -701,78 +747,199 @@ function DashboardContent() {
           </div>
         </article>
       </section>
-      <section className="linen-workspace">
-        <aside className="linen-attention">
-          <div className="linen-section-heading">
-            <div>
-              <span className="linen-section-eyebrow">
-                {text("优先查看", "PRIORITY QUEUE")}
-              </span>
-              <h2>{text("待关注", "Attention")}</h2>
-            </div>
-            <span
-              className={
-                "linen-count-badge " + (attention.length ? "is-active" : "")
-              }
-            >
-              {String(attention.length).padStart(2, "0")}
+      <section
+        className="linen-network-overview"
+        aria-label={text("实时带宽与累计流量", "Live bandwidth and traffic")}
+      >
+        <article
+          className={
+            "linen-network-stat" + (network.ratePartial ? " is-partial" : "")
+          }
+          data-network="live"
+        >
+          <span className="linen-network-stat__label">
+            <Network size={15} />
+            {text("实时带宽", "LIVE BANDWIDTH")}
+          </span>
+          <div className="linen-network-stat__values">
+            <span>
+              <ArrowDownRight size={15} />
+              <strong data-metric="speed-down">
+                {fmtSpeed(network.speedDown)}
+              </strong>
+              <small>{text("下载", "Down")}</small>
+            </span>
+            <span>
+              <ArrowUpRight size={15} />
+              <strong data-metric="speed-up">
+                {fmtSpeed(network.speedUp)}
+              </strong>
+              <small>{text("上传", "Up")}</small>
             </span>
           </div>
-          {attention.length ? (
-            <div className="linen-attention-list">
-              {attention.slice(0, 5).map((item) => (
-                <Concern key={item.node.uuid} state={item} en={en} />
-              ))}
-              {attention.length > 5 && (
-                <button
-                  className="linen-queue-more"
-                  type="button"
-                  onClick={() => setFilter("attention")}
-                >
-                  {text("查看其余", "View remaining")} {attention.length - 5}
-                  <ArrowRight size={14} />
-                </button>
-              )}
-            </div>
-          ) : (
-            <div className="linen-empty-queue">
-              <span className="linen-empty-queue__icon">
-                <Check size={19} />
-              </span>
-              <div>
-                <strong>
-                  {text(
-                    !liveReady || waitingCount
-                      ? "等待采样确认"
-                      : "暂时没有待处理项",
-                    !liveReady || waitingCount
-                      ? "Awaiting telemetry confirmation"
-                      : "Nothing needs attention",
-                  )}
-                </strong>
-                <p>
-                  {text(
-                    !liveReady || waitingCount
-                      ? "数据尚未完整，暂不判断全部健康。"
-                      : "所有已采样节点都在安全范围。",
-                    !liveReady || waitingCount
-                      ? "Some current readings are unavailable."
-                      : "Sampled nodes are within their resource thresholds.",
-                  )}
-                </p>
-              </div>
-            </div>
-          )}
-          <div className="linen-queue-note">
-            <span className="linen-queue-note__line" />
-            <p>
-              {text(
-                "关注项根据公开节点状态及最近采样估算。",
-                "Attention is estimated from visible status and the latest sample.",
-              )}
-            </p>
+          <small className="linen-network-stat__note">
+            {text("仅新鲜在线样本", "Fresh online samples only")} ·{" "}
+            {network.rateNodes}/{network.nodeCount}{" "}
+            {text("可见节点", "visible nodes")}
+            {network.offlineNodes > 0
+              ? text(" · 离线 ", " · offline ") + network.offlineNodes
+              : ""}
+            {network.unknownNodes > 0
+              ? text(" · 状态未知 ", " · status unknown ") +
+                network.unknownNodes
+              : ""}
+            {network.ratePartial
+              ? text(" · 部分数据缺失", " · partial data")
+              : ""}
+          </small>
+        </article>
+        <article
+          className={
+            "linen-network-stat" + (network.counterPartial ? " is-partial" : "")
+          }
+          data-network="counters"
+        >
+          <span className="linen-network-stat__label">
+            <ArrowRight size={15} />
+            {text("累计流量", "REPORTED TRAFFIC")}
+          </span>
+          <div className="linen-network-stat__values">
+            <span>
+              <ArrowDownRight size={15} />
+              <strong data-metric="total-down">
+                {network.totalDown === null
+                  ? "—"
+                  : formatBytes(network.totalDown)}
+              </strong>
+              <small>{text("下载", "Down")}</small>
+            </span>
+            <span>
+              <ArrowUpRight size={15} />
+              <strong data-metric="total-up">
+                {network.totalUp === null ? "—" : formatBytes(network.totalUp)}
+              </strong>
+              <small>{text("上传", "Up")}</small>
+            </span>
           </div>
-        </aside>
+          <small className="linen-network-stat__note">
+            {text(
+              "含离线节点最后上报值",
+              "Includes last-reported offline counters",
+            )}{" "}
+            · {network.counterNodes}/{network.nodeCount}
+            {network.counterPartial
+              ? text(" · 部分数据缺失", " · partial data")
+              : ""}
+          </small>
+        </article>
+        <article
+          className={
+            "linen-network-stat" + (network.counterPartial ? " is-partial" : "")
+          }
+          data-network="total"
+        >
+          <span className="linen-network-stat__label">
+            <Activity size={15} />
+            {text("总消耗流量", "TOTAL TRANSFER")}
+          </span>
+          <strong
+            className="linen-network-stat__total"
+            data-metric="total-transfer"
+          >
+            {network.totalBytes === null
+              ? "—"
+              : formatBytes(network.totalBytes)}
+          </strong>
+          <small className="linen-network-stat__note">
+            {text(
+              network.counterPartial
+                ? "仅已知部分：上传＋下载；非自然月账单，计数可能重置。"
+                : "所有可见节点上传＋下载；非自然月账单，计数可能重置。",
+              network.counterPartial
+                ? "Known portion only: upload + download. Not monthly billing; counters may reset."
+                : "All visible nodes: upload + download. Not monthly billing; counters may reset.",
+            )}
+          </small>
+        </article>
+      </section>
+      <section
+        className={
+          "linen-workspace" + (showPrioritySection ? "" : " is-fullwidth")
+        }
+      >
+        {showPrioritySection && (
+          <aside className="linen-attention">
+            <div className="linen-section-heading">
+              <div>
+                <span className="linen-section-eyebrow">
+                  {text("优先查看", "PRIORITY QUEUE")}
+                </span>
+                <h2>{text("待关注", "Attention")}</h2>
+              </div>
+              <span
+                className={
+                  "linen-count-badge " + (attention.length ? "is-active" : "")
+                }
+              >
+                {String(attention.length).padStart(2, "0")}
+              </span>
+            </div>
+            {attention.length ? (
+              <div className="linen-attention-list">
+                {attention.slice(0, 5).map((item) => (
+                  <Concern key={item.node.uuid} state={item} en={en} />
+                ))}
+                {attention.length > 5 && (
+                  <button
+                    className="linen-queue-more"
+                    type="button"
+                    onClick={() => setFilter("attention")}
+                  >
+                    {text("查看其余", "View remaining")} {attention.length - 5}
+                    <ArrowRight size={14} />
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div className="linen-empty-queue">
+                <span className="linen-empty-queue__icon">
+                  <Check size={19} />
+                </span>
+                <div>
+                  <strong>
+                    {text(
+                      !liveReady || waitingCount || stateList.length === 0
+                        ? "等待采样确认"
+                        : "暂时没有待处理项",
+                      !liveReady || waitingCount || stateList.length === 0
+                        ? "Awaiting telemetry confirmation"
+                        : "Nothing needs attention",
+                    )}
+                  </strong>
+                  <p>
+                    {text(
+                      !liveReady || waitingCount || stateList.length === 0
+                        ? "数据尚未完整，暂不判断全部健康。"
+                        : "已上报指标暂未发现超阈值；未上报指标按缺测处理。",
+                      !liveReady || waitingCount || stateList.length === 0
+                        ? "Some current readings are unavailable."
+                        : "No reported metric is over threshold; unreported metrics remain unknown.",
+                    )}
+                  </p>
+                </div>
+              </div>
+            )}
+            <div className="linen-queue-note">
+              <span className="linen-queue-note__line" />
+              <p>
+                {text(
+                  "关注项根据公开节点状态及最近采样估算。",
+                  "Attention is estimated from visible status and the latest sample.",
+                )}
+              </p>
+            </div>
+          </aside>
+        )}
         <section className="linen-fleet">
           <div className="linen-fleet-heading">
             <div>
@@ -859,18 +1026,20 @@ function DashboardContent() {
               <button
                 type="button"
                 className={group === "all" ? "is-active" : ""}
+                aria-pressed={group === "all"}
                 onClick={() => setGroup("all")}
               >
                 {text("全部分组", "All groups")}
               </button>
-              {groups.map((name) => (
+              {groups.map((entry) => (
                 <button
                   type="button"
-                  key={name}
-                  className={group === name ? "is-active" : ""}
-                  onClick={() => setGroup(name)}
+                  key={entry.id}
+                  className={group === entry.id ? "is-active" : ""}
+                  aria-pressed={group === entry.id}
+                  onClick={() => setGroup(entry.id)}
                 >
-                  {name}
+                  {entry.label}
                 </button>
               ))}
             </div>

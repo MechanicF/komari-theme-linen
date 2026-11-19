@@ -51,7 +51,7 @@ export type NodeBasicInfo = {
   created_at: string;
   /** 更新时间 */
   updated_at: string;
-  ipv4?: string; 
+  ipv4?: string;
   ipv6?: string;
 };
 
@@ -59,7 +59,7 @@ interface NodeListContextType {
   nodeList: NodeBasicInfo[] | null;
   isLoading: boolean;
   error: string | null;
-  refresh: () => void;
+  refresh: () => Promise<void>;
 }
 
 const NODE_LIST_CONTEXT_KEY = "__komariNodeListContext" as const;
@@ -71,8 +71,9 @@ type NodeListContextGlobal = typeof globalThis & {
 const globalNodeListContext = globalThis as NodeListContextGlobal;
 const NodeListContext =
   globalNodeListContext[NODE_LIST_CONTEXT_KEY] ??
-  (globalNodeListContext[NODE_LIST_CONTEXT_KEY] =
-    React.createContext<NodeListContextType | undefined>(undefined));
+  (globalNodeListContext[NODE_LIST_CONTEXT_KEY] = React.createContext<
+    NodeListContextType | undefined
+  >(undefined));
 
 const sameNodeBasicInfo = (left: NodeBasicInfo, right: NodeBasicInfo) =>
   (Object.keys(right) as Array<keyof NodeBasicInfo>).every(
@@ -101,44 +102,49 @@ export const NodeListProvider: React.FC<{ children: React.ReactNode }> = ({
     // setIsLoading(true);
     setError(null);
     // 通过 RPC2 获取节点基本信息
-    call<{ uuid?: string }, Record<string, any>>("common:getNodes")
+    return call<{ uuid?: string }, Record<string, any>>("common:getNodes")
       .then((result) => {
         if (!mountedRef.current || refreshSeq !== refreshSeqRef.current) return;
-        if (!result || typeof result !== "object") {
-          setNodeList([]);
-          return;
+        if (!result || typeof result !== "object" || Array.isArray(result)) {
+          throw new Error("Invalid node inventory response");
         }
         // 将 { [uuid]: Client } 转换为 NodeBasicInfo[]
-        const list: NodeBasicInfo[] = Object.values(result).map((n: any) => ({
-          uuid: n.uuid,
-          name: n.name,
-          cpu_name: n.cpu_name,
-          virtualization: n.virtualization,
-          arch: n.arch,
-          cpu_cores: n.cpu_cores,
-          os: n.os,
-          kernel_version: n.kernel_version,
-          gpu_name: n.gpu_name,
-          region: n.region,
-          mem_total: n.mem_total,
-          swap_total: n.swap_total,
-          disk_total: n.disk_total,
-          // 兼容旧字段，若无版本信息则给空串
-          version: n.version ?? "",
-          weight: n.weight ?? 0,
-          price: n.price ?? 0,
-          tags: n.tags ?? "",
-          billing_cycle: n.billing_cycle ?? 0,
-          currency: n.currency ?? "",
-          group: n.group ?? "",
-          traffic_limit: n.traffic_limit ?? 0,
-          traffic_limit_type: n.traffic_limit_type,
-          expired_at: n.expired_at ?? "",
-          created_at: n.created_at ?? "",
-          updated_at: n.updated_at ?? "",
-          ipv4: n.ipv4,
-          ipv6: n.ipv6,
-        }));
+        const list: NodeBasicInfo[] = Object.values(result)
+          .filter(
+            (n: any) => n && typeof n.uuid === "string" && n.uuid.length > 0,
+          )
+          .map((n: any) => ({
+            uuid: n.uuid,
+            name: typeof n.name === "string" ? n.name : "",
+            cpu_name: typeof n.cpu_name === "string" ? n.cpu_name : "",
+            virtualization:
+              typeof n.virtualization === "string" ? n.virtualization : "",
+            arch: typeof n.arch === "string" ? n.arch : "",
+            cpu_cores: n.cpu_cores,
+            os: typeof n.os === "string" ? n.os : "",
+            kernel_version:
+              typeof n.kernel_version === "string" ? n.kernel_version : "",
+            gpu_name: typeof n.gpu_name === "string" ? n.gpu_name : "",
+            region: typeof n.region === "string" ? n.region : "",
+            mem_total: n.mem_total,
+            swap_total: n.swap_total,
+            disk_total: n.disk_total,
+            // 兼容旧字段，若无版本信息则给空串
+            version: n.version ?? "",
+            weight: n.weight ?? 0,
+            price: n.price ?? 0,
+            tags: n.tags ?? "",
+            billing_cycle: n.billing_cycle ?? 0,
+            currency: n.currency ?? "",
+            group: typeof n.group === "string" ? n.group : "",
+            traffic_limit: n.traffic_limit ?? 0,
+            traffic_limit_type: n.traffic_limit_type,
+            expired_at: n.expired_at ?? "",
+            created_at: n.created_at ?? "",
+            updated_at: n.updated_at ?? "",
+            ipv4: n.ipv4,
+            ipv6: n.ipv6,
+          }));
         setNodeList((previous) => {
           if (!previous) return list;
           const previousByUuid = new Map(
@@ -159,8 +165,17 @@ export const NodeListProvider: React.FC<{ children: React.ReactNode }> = ({
       })
       .catch((err: any) => {
         if (!mountedRef.current || refreshSeq !== refreshSeqRef.current) return;
+        console.warn(
+          "Node list refresh failed:",
+          err?.message || "Unknown failure",
+        );
         setError(err?.message || "An error occurred while fetching data");
-        setNodeList([]);
+        if (
+          /unauth|forbidden|permission|access denied|private site|登录|权限|(?:HTTP|RPC Error).*40[13]/i.test(
+            String(err?.message),
+          )
+        )
+          setNodeList([]);
       })
       .finally(() => {
         if (!mountedRef.current || refreshSeq !== refreshSeqRef.current) return;
@@ -169,7 +184,16 @@ export const NodeListProvider: React.FC<{ children: React.ReactNode }> = ({
   }, [call]);
 
   React.useEffect(() => {
-    refresh();
+    const update = () => {
+      if (!document.hidden) void refresh();
+    };
+    update();
+    const timer = window.setInterval(update, 30000);
+    document.addEventListener("visibilitychange", update);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", update);
+    };
   }, [refresh]);
 
   const contextValue = React.useMemo(

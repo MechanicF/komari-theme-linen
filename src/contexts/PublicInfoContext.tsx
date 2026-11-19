@@ -8,9 +8,7 @@ type ThemeField = {
 };
 
 const defaultThemeSettings = Object.fromEntries(
-  (
-    (defaultTheme.configuration?.data ?? []) as ThemeField[]
-  )
+  ((defaultTheme.configuration?.data ?? []) as ThemeField[])
     .filter(
       (field) =>
         typeof field.key === "string" &&
@@ -63,9 +61,9 @@ interface PublicInfoContextType {
   refresh: () => Promise<void>;
 }
 
-const PublicInfoContext = React.createContext<PublicInfoContextType | undefined>(
-  undefined
-);
+const PublicInfoContext = React.createContext<
+  PublicInfoContextType | undefined
+>(undefined);
 
 export const PublicInfoProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
@@ -73,35 +71,55 @@ export const PublicInfoProvider: React.FC<{ children: React.ReactNode }> = ({
   const [publicInfo, setPublicInfo] = React.useState<PublicInfo | null>(null);
   const [isLoading, setIsLoading] = React.useState<boolean>(false);
   const [error, setError] = React.useState<string | null>(null);
+  const requestSeq = React.useRef(0);
+  const currentRequest = React.useRef<AbortController | null>(null);
   //const { call } = useRPC2Call();
   // 公共信息使用public，避免在私有站点的情况下RPC返回401
   const refresh = React.useCallback(async () => {
+    const sequence = ++requestSeq.current;
+    currentRequest.current?.abort();
+    const controller = new AbortController();
+    currentRequest.current = controller;
+    const timeout = window.setTimeout(() => controller.abort(), 15000);
     setError(null);
     setIsLoading(true);
     try {
-      const response = await fetch("/api/public");
+      const response = await fetch("/api/public", {
+        signal: controller.signal,
+        cache: "no-store",
+      });
       if (!response.ok) {
         throw new Error("Failed to fetch public info");
       }
       const resp = (await response.json()) as Response;
+      if (sequence !== requestSeq.current) return;
       if (resp && resp.data) {
         setPublicInfo(withThemeDefaults(resp.data));
       } else {
         setPublicInfo(null);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      if (sequence === requestSeq.current)
+        setError(err instanceof Error ? err.message : String(err));
     } finally {
-      setIsLoading(false);
+      window.clearTimeout(timeout);
+      if (currentRequest.current === controller) currentRequest.current = null;
+      if (sequence === requestSeq.current) setIsLoading(false);
     }
   }, []);
 
   React.useEffect(() => {
     void refresh();
+    return () => {
+      requestSeq.current++;
+      currentRequest.current?.abort();
+    };
   }, [refresh]);
 
   return (
-    <PublicInfoContext.Provider value={{ publicInfo, isLoading, error, refresh }}>
+    <PublicInfoContext.Provider
+      value={{ publicInfo, isLoading, error, refresh }}
+    >
       {children}
     </PublicInfoContext.Provider>
   );
