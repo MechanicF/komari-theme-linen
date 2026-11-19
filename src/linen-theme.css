@@ -1,0 +1,207 @@
+/* Linen — a warm, quiet Komari theme. Keep Radix accent tokens intact so the user's accent switch still works. */
+.radix-themes.theme-root {
+  --gray-1: #fcfbf8;
+  --gray-2: #f7f6f1;
+  --gray-3: #f0efe9;
+  --gray-4: #e9e7df;
+  --gray-5: #e1ded5;
+  --gray-6: #d6d2c6;
+  --gray-7: #c5c1b5;
+  --gray-8: #aea99d;
+  --gray-9: #8f8a7d;
+  --gray-10: #7a766a;
+  --gray-11: #5f5c52;
+  --gray-12: #2f302a;
+  --background: #f7f6f1;
+  --foreground: #292b25;
+  --card: #fffefa;
+  --card-foreground: #292b25;
+  --popover: #fffefa;
+  --popover-foreground: #292b25;
+  --primary: #5e7662;
+  --primary-foreground: #fffefa;
+  --secondary: #efeee7;
+  --secondary-foreground: #484b43;
+  --muted: #f0efe9;
+  --muted-foreground: #77786f;
+  --accent: #ecebe3;
+  --accent-foreground: #34372f;
+  --destructive: #b6544d;
+  --border: #e7e4da;
+  --input: #e1ded3;
+  --ring: #91a18d;
+  --chart-1: #6e8b73;
+  --chart-2: #d19c62;
+  --chart-3: #7d9da0;
+  --chart-4: #bd7969;
+  --chart-5: #9c8b70;
+  --radius: 1rem;
+  color-scheme: light;
+}
+
+.dark .radix-themes.theme-root {
+  --gray-1: #20211d;
+  --gray-2: #252620;
+  --gray-3: #2c2d26;
+  --gray-4: #34352e;
+  --gray-5: #3c3d35;
+  --gray-6: #47483f;
+  --gray-7: #55564c;
+  --gray-8: #6c6d62;
+  --gray-9: #818277;
+  --gray-10: #98998d;
+  --gray-11: #b8b8ac;
+  --gray-12: #eeebe1;
+  --background: #20211d;
+  --foreground: #eeeae0;
+  --card: #282923;
+  --card-foreground: #eeeae0;
+  --popover: #282923;
+  --popover-foreground: #eeeae0;
+  --primary: #a2b49b;
+  --primary-foreground: #20211d;
+  --secondary: #34352e;
+  --secondary-foreground: #e4e0d5;
+  --muted: #30312b;
+  --muted-foreground: #aaa99e;
+  --accent: #36372f;
+  --accent-foreground: #f0ede4;
+  --destructive: #e18b7d;
+  --border: #3b3c34;
+  --input: #44453c;
+  --ring: #8fa18a;
+  --chart-1: #a4c39c;
+  --chart-2: #e0b77e;
+  --chart-3: #8db4b7;
+  --chart-4: #d69585;
+  --chart-5: #c6b28c;
+  color-scheme: dark;
+}
+
+html:not(.dark) body {
+  background: #f7f6f1;
+}
+
+.km-layout {
+  background-color: #f7f6f1;
+}
+
+.km-layout:not(.bg-cover) {
+  background-image:
+    radial-gradient(ellipse at 12% -12%, rgba(217, 197, 160, 0.22), transparent 38%),
+    radial-gradient(ellipse at 100% 8%, rgba(193, 210, 190, 0.16), transparent 32%),
+    linear-gradient(180deg, #faf9f5 0%, #f5f3ed 100%);
+}
+
+.dark .km-layout {
+  background-color: #20211d;
+}
+
+.dark .km-layout:not(.bg-cover) {
+  background-image:
+    radial-gradient(ellipse at 12% -12%, rgba(112, 117, 83, 0.18), transparent 38%),
+    radial-gradient(ellipse at 100% 8%, rgba(78, 105, 86, 0.14), transparent 32%),
+    linear-gradient(180deg, #22231f 0%, #1d1e1a 100%);
+}
+
+.km-main {
+  max-width: 1280px !important;
+  margin-inline: auto !important;
+}
+
+.km-navbar {
+  min-height: 60px;
+  max-height: none !important;
+  margin-top: clamp(12px, 2.2vw, 24px);
+  padding: 10px 16px !important;
+  border: 1px solid rgba(126, 119, 98, 0.16);
+  border-radius: 18px !important;
+  background: rgba(255, 254, 250, 0.88) !important;
+  box-shadow: 0 8px 28px rgba(76, 69, 53, 0.055);
+  backdrop-filter: blur(14px);
+}
+
+.dark .km-navbar {
+  border-color: rgba(220, 216, 198, 0.11);
+  background: rgba(39, 40, 34, 0.88) !important;
+  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.16);
+}
+
+.km-node-card,
+.km-summary-card,
+.km-dashboard-widget-card,
+.km-top-card .rt-Card,
+.km-instance-server-list-card {
+  border: 1px solid #e8e4da !important;
+  border-radius: 18px !important;
+  background: var(--card) !important;
+  box-shadow: 0 8px 24px rgba(73, 65, 48, 0.055);
+  transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
+}
+
+.km-node-card:hover {
+  transform: translateY(-2px);
+  border-color: #d4cbb7 !important;
+  box-shadow: 0 14px 30px rgba(73, 65, 48, 0.10) !important;
+}
+
+.dark .km-node-card,
+.dark .km-summary-card,
+.dark .km-dashboard-widget-card,
+.dark .km-top-card .rt-Card,
+.dark .km-instance-server-list-card {
+  border-color: #3c3d35 !important;
+  background: var(--card) !important;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.16);
+}
+
+.dark .km-node-card:hover {
+  border-color: #606653 !important;
+  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.26) !important;
+}
+
+.km-node-name {
+  letter-spacing: -0.018em;
+}
+
+.km-footer {
+  border-top-color: rgba(126, 119, 98, 0.18) !important;
+}
+
+.dark .km-footer {
+  border-top-color: rgba(220, 216, 198, 0.13) !important;
+}
+
+::selection {
+  background: rgba(153, 169, 139, 0.28);
+}
+
+@media (max-width: 640px) {
+  .km-main {
+    max-width: calc(100% - 16px) !important;
+  }
+
+  .km-navbar {
+    min-height: 54px;
+    margin-top: 8px;
+    padding: 8px 10px !important;
+    border-radius: 15px !important;
+  }
+
+  .km-node-card,
+  .km-summary-card,
+  .km-dashboard-widget-card {
+    border-radius: 15px !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
