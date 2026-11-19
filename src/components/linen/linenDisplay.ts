@@ -16,6 +16,9 @@ export const DISPLAY_DEFAULTS = {
   showNodeNetwork: true,
   showNodeUptime: true,
   showNodeLoad: true,
+  showNodeTrafficProgress: true,
+  showNodeTrafficTotal: true,
+  showNodeTrafficToday: true,
 } as const;
 export type DisplayOptions = { [K in keyof typeof DISPLAY_DEFAULTS]: boolean };
 export function readDisplayOptions(value: unknown): DisplayOptions {

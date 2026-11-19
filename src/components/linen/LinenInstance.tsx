@@ -381,7 +381,7 @@ function History({ uuid, en }: { uuid: string; en: boolean }) {
         <div>
           <span className="linen-instance-eyebrow">PERFORMANCE HISTORY</span>
           <h2 id="linen-history-title">
-            {en ? "A closer look over time" : "运行趋势，细看每个时刻"}
+            {en ? "Resource history" : "历史资源趋势"}
           </h2>
           <p>
             {en

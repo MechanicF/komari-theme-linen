@@ -35,6 +35,8 @@ import { formatBytes } from "@/utils/unitHelper";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { summarizeNetwork, validCounter } from "./linenNetwork";
 import { readDisplayOptions, type DisplayOptions } from "./linenDisplay";
+import NodeTraffic from "./NodeTraffic";
+import { useDailyTraffic } from "./useDailyTraffic";
 import "./LinenDashboard.css";
 
 const EMPTY_LIVE: LiveSnapshot = { online: [], data: {} };
@@ -241,10 +243,12 @@ function NodeRow({
   state,
   en,
   display,
+  daily,
 }: {
   state: NodeState;
   en: boolean;
   display: DisplayOptions;
+  daily: ReturnType<typeof useDailyTraffic>;
 }) {
   const record = state.online ? state.record : undefined;
   const empty = en ? "No sample" : "暂无采样";
@@ -344,6 +348,17 @@ function NodeRow({
           <ChevronRight size={15} />
         </Link>
       </div>
+      <NodeTraffic
+        node={state.node}
+        network={state.record?.network}
+        online={state.online}
+        en={en}
+        display={display}
+        daily={daily.records[state.node.uuid]}
+        status={daily.status}
+        zone={daily.zone}
+        fetched={daily.fetched}
+      />
     </article>
   );
 }
@@ -396,6 +411,11 @@ function DashboardContent() {
   const display = useMemo(
     () => readDisplayOptions(publicInfo?.theme_settings),
     [publicInfo?.theme_settings],
+  );
+  const daily = useDailyTraffic(
+    (nodeList ?? []).map((node) => node.uuid),
+    display.showNodeTrafficToday && Boolean(publicInfo),
+    publicInfo?.theme_settings?.trafficDayTimezone,
   );
   const showPrioritySection = display.showPrioritySection;
   const overviewCount =
@@ -591,7 +611,12 @@ function DashboardContent() {
     if (refreshing) return;
     setRefreshing(true);
     try {
-      await Promise.all([refresh(), refreshLive(), refreshPublic()]);
+      await Promise.all([
+        refresh(),
+        refreshLive(),
+        refreshPublic(),
+        daily.refresh(),
+      ]);
     } finally {
       setRefreshing(false);
     }
@@ -631,14 +656,13 @@ function DashboardContent() {
         <div className="linen-console-hero__copy">
           <span className="linen-kicker">
             <span className="linen-kicker__pulse" />
-            {text("基础设施监控 / 实时视图", "INFRASTRUCTURE / LIVE")}
+            {text("运行状态 / 流量概览", "STATUS / NETWORK")}
           </span>
           <h1>{text("节点运行台", "Node operations")}</h1>
           <p>
             {en
-              ? title +
-                ": availability, capacity and anything that needs attention."
-              : title + " · 先判断整体状态，再定位异常节点与资源瓶颈。"}
+              ? title + ": node status, resource use and network transfer."
+              : title + " · 查看节点状态、资源占用与网络流量。"}
           </p>
         </div>
         <div className="linen-console-hero__actions">
@@ -894,7 +918,7 @@ function DashboardContent() {
             >
               <span className="linen-network-stat__label">
                 <ArrowRight size={15} />
-                {text("累计流量", "REPORTED TRAFFIC")}
+                {text("累计上传/下载", "REPORTED UP/DOWN")}
               </span>
               <div className="linen-network-stat__values">
                 <span>
@@ -938,7 +962,7 @@ function DashboardContent() {
             >
               <span className="linen-network-stat__label">
                 <Activity size={15} />
-                {text("总消耗流量", "TOTAL TRANSFER")}
+                {text("累计传输总量", "TOTAL TRANSFER")}
               </span>
               <strong
                 className="linen-network-stat__total"
@@ -1183,6 +1207,7 @@ function DashboardContent() {
                   state={item}
                   en={en}
                   display={display}
+                  daily={daily}
                 />
               ))
             ) : (

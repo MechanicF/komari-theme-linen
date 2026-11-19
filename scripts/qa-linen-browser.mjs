@@ -42,6 +42,13 @@ const nodes = Object.fromEntries(
     },
   ]),
 );
+nodes["demo-tokyo"].traffic_limit = 200 * GiB;
+nodes["demo-tokyo"].traffic_limit_type = "sum";
+nodes["demo-singapore"].traffic_limit = 10 * GiB;
+nodes["demo-singapore"].traffic_limit_type = "up";
+nodes["demo-frankfurt"].traffic_limit = 0;
+nodes["demo-helsinki"].traffic_limit = 200 * GiB;
+nodes["demo-helsinki"].traffic_limit_type = "max";
 const layoutNodes = Object.fromEntries(
   Object.entries(nodes).map(([uuid, node]) => {
     if (uuid === "demo-tokyo")
@@ -153,7 +160,13 @@ const publicInfo = {
 let scenario = "normal";
 const methodCalls = [];
 const resultFor = (req) => {
-  methodCalls.push({ method: req.method, hours: req.params?.hours });
+  methodCalls.push({
+    method: req.method,
+    hours: req.params?.hours,
+    metricKeys: req.params?.metric_keys,
+    start: req.params?.start,
+    aggregation: req.params?.aggregation,
+  });
   if (req.method === "common:getNodes")
     return scenario === "empty"
       ? {}
@@ -162,6 +175,37 @@ const resultFor = (req) => {
         : nodes;
   if (req.method === "common:getNodesLatestStatus") return makeLive();
   if (req.method.includes("Version")) return { version: "1.6.1", hash: "demo" };
+  if (
+    req.method === "public:queryMetrics" &&
+    req.params?.metric_keys?.includes("traffic.up")
+  ) {
+    const start = Date.parse(req.params.start),
+      ids = req.params.entity_ids || Object.keys(nodes);
+    return {
+      start: req.params.start,
+      end: req.params.end,
+      count: 2,
+      series:
+        scenario === "daily-empty"
+          ? []
+          : ids.flatMap((id) =>
+              ["traffic.up", "traffic.down"].map((key) => ({
+                entity_id: id,
+                metric_key: key,
+                interval_seconds: 60,
+                count: 2,
+                points: [0, 1].map((minute) => ({
+                  time: new Date(start + minute * 60000).toISOString(),
+                  value:
+                    key === "traffic.up"
+                      ? (minute ? 256 : 512) * 1024
+                      : 1024 * 1024,
+                  count: 100,
+                })),
+              })),
+            ),
+    };
+  }
   if (req.method === "public:queryMetrics") {
     const end = Date.now(),
       start = end - (req.params.hours || 1) * 3600000;
@@ -195,33 +239,44 @@ const resultFor = (req) => {
   return [];
 };
 const respond = (req) =>
-  scenario === "permission-denied" && req.method === "common:getNodes"
+  scenario === "daily-error" &&
+  req.method === "public:queryMetrics" &&
+  req.params?.metric_keys?.includes("traffic.up")
     ? {
         jsonrpc: "2.0",
         id: req.id,
-        error: { code: 403, message: "Access denied" },
+        error: { code: -32000, message: "Daily statistics unavailable" },
       }
-    : scenario === "list-failure" && req.method === "common:getNodes"
+    : scenario === "permission-denied" && req.method === "common:getNodes"
       ? {
           jsonrpc: "2.0",
           id: req.id,
-          error: {
-            code: -32000,
-            message: "Simulated node-list refresh failure",
-          },
+          error: { code: 403, message: "Access denied" },
         }
-      : scenario === "disconnected" &&
-          req.method === "common:getNodesLatestStatus"
+      : scenario === "list-failure" && req.method === "common:getNodes"
         ? {
             jsonrpc: "2.0",
             id: req.id,
-            error: { code: -32000, message: "Simulated telemetry disconnect" },
+            error: {
+              code: -32000,
+              message: "Simulated node-list refresh failure",
+            },
           }
-        : {
-            jsonrpc: "2.0",
-            id: req.id,
-            result: resultFor(req),
-          };
+        : scenario === "disconnected" &&
+            req.method === "common:getNodesLatestStatus"
+          ? {
+              jsonrpc: "2.0",
+              id: req.id,
+              error: {
+                code: -32000,
+                message: "Simulated telemetry disconnect",
+              },
+            }
+          : {
+              jsonrpc: "2.0",
+              id: req.id,
+              result: resultFor(req),
+            };
 const browser = await chromium.launch({
   headless: true,
   args: ["--no-sandbox"],
@@ -325,6 +380,95 @@ try {
   report.push(
     "3 network stats: fresh online rates, offline last-reported counters, total transfer",
   );
+  await page.waitForFunction(
+    () =>
+      document.querySelector('[data-node-traffic="today"] strong')
+        ?.textContent === "2.75 MB",
+  );
+  const tokyo = page.locator(".linen-node-row", { hasText: "Tokyo" });
+  const singapore = page.locator(".linen-node-row", { hasText: "Singapore" });
+  const frankfurt = page.locator(".linen-node-row", { hasText: "Frankfurt" });
+  assert.equal(
+    await tokyo
+      .locator('[data-node-traffic="quota"] [role="progressbar"]')
+      .getAttribute("aria-valuenow"),
+    "57",
+  );
+  assert.match(
+    await singapore.locator('[data-node-traffic="quota"]').innerText(),
+    /120.0%/,
+  );
+  assert.equal(
+    await singapore
+      .locator('[role="progressbar"]')
+      .getAttribute("aria-valuenow"),
+    "100",
+  );
+  assert.equal(await frankfurt.locator('[role="progressbar"]').count(), 0);
+  assert.match(
+    await frankfurt.locator('[data-node-traffic="quota"]').innerText(),
+    /未设置/,
+  );
+  assert.equal(
+    await tokyo.locator('[data-node-traffic="cumulative"]>strong').innerText(),
+    "114.00 GB",
+  );
+  assert.ok(
+    methodCalls.some(
+      (call) =>
+        call.metricKeys?.includes("traffic.up") &&
+        call.aggregation === "sum" &&
+        new Date(call.start).getUTCHours() === 16,
+    ),
+  );
+  publicInfo.theme_settings.trafficDayTimezone = "UTC";
+  await page.reload({ waitUntil: "networkidle" });
+  await page.waitForFunction(() =>
+    document
+      .querySelector('[data-node-traffic="today"]')
+      ?.textContent.includes("(UTC)"),
+  );
+  assert.equal(
+    new Date(
+      methodCalls.filter((c) => c.metricKeys?.includes("traffic.up")).at(-1)
+        .start,
+    ).getUTCHours(),
+    0,
+  );
+  delete publicInfo.theme_settings.trafficDayTimezone;
+  scenario = "daily-empty";
+  await page.reload({ waitUntil: "networkidle" });
+  assert.equal(
+    await page
+      .locator('[data-node-traffic="today"]>strong')
+      .first()
+      .innerText(),
+    "—",
+  );
+  scenario = "daily-error";
+  await page.reload({ waitUntil: "networkidle" });
+  await page.waitForFunction(() =>
+    document
+      .querySelector('[data-node-traffic="today"]')
+      ?.textContent.includes("暂无法获取"),
+  );
+  assert.equal(
+    await page
+      .locator('[data-node-traffic="today"]>strong')
+      .first()
+      .innerText(),
+    "—",
+  );
+  scenario = "normal";
+  await page.reload({ waitUntil: "networkidle" });
+  await page.waitForFunction(
+    () =>
+      document.querySelector('[data-node-traffic="today"] strong')
+        ?.textContent === "2.75 MB",
+  );
+  report.push(
+    "node quota sum/up/max, no-limit and overage; cumulative bytes; UTC+8/UTC daily stored increments; empty/error not zero",
+  );
   await page.getByRole("button", { name: /^离线/ }).click();
   assert.equal(await page.locator(".linen-node-row").count(), 1);
   assert.match(await page.locator(".linen-node-row").innerText(), /Frankfurt/);
@@ -388,6 +532,9 @@ try {
     "showNodeNetwork",
     "showNodeUptime",
     "showNodeLoad",
+    "showNodeTrafficProgress",
+    "showNodeTrafficTotal",
+    "showNodeTrafficToday",
   ];
   Object.assign(
     publicInfo.theme_settings,
@@ -402,7 +549,7 @@ try {
   assert.equal(
     await page
       .locator(
-        ".linen-node-row__metrics, .linen-node-row__traffic, .linen-node-avatar, .linen-node-meta, .linen-node-row__footer > span",
+        ".linen-node-row__metrics, .linen-node-row__traffic, .linen-node-avatar, .linen-node-meta, .linen-node-row__footer > span, .linen-node-traffic",
       )
       .count(),
     0,
@@ -460,7 +607,7 @@ try {
   );
 
   report.push(
-    "16 card content toggles: all hidden, CPU-only and defaults; offline excluded from attention",
+    "19 card content toggles: all hidden, CPU-only and defaults; offline excluded from attention",
   );
   scenario = "list-failure";
   await page.locator(".linen-refresh").click();

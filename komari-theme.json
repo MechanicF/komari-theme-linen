@@ -8,7 +8,7 @@
     "zh-CN": "原创节点运行台布局，包含可用率总览、待关注队列和可筛选的节点资源清单。",
     "en": "An original node-operations dashboard with availability, attention queue, and filterable capacity inventory."
   },
-  "version": "2.2.1",
+  "version": "2.3.0",
   "author": "MechanicF",
   "preview": "preview.png",
   "configuration": {
@@ -121,7 +121,7 @@
         "type": "switch",
         "default": true,
         "name": {
-          "zh-CN": "总消耗流量卡片",
+          "zh-CN": "累计传输总量卡片",
           "en": "Total transfer card"
         },
         "help": {
@@ -251,6 +251,59 @@
         "help": {
           "zh-CN": "只控制内容显示，不改变数据采集、统计与待关注判断。",
           "en": "Display only; collection, statistics and attention rules are unchanged."
+        }
+      },
+      {
+        "key": "showNodeTrafficProgress",
+        "type": "switch",
+        "default": true,
+        "name": {
+          "zh-CN": "流量额度进度条",
+          "en": "Traffic allowance progress"
+        },
+        "help": {
+          "zh-CN": "显示卡片中的对应流量信息；不更改节点额度或采集设置。",
+          "en": "Display only; node allowances and collection settings are unchanged."
+        }
+      },
+      {
+        "key": "showNodeTrafficTotal",
+        "type": "switch",
+        "default": true,
+        "name": {
+          "zh-CN": "累计传输（上传＋下载）",
+          "en": "Cumulative transfer"
+        },
+        "help": {
+          "zh-CN": "显示卡片中的对应流量信息；不更改节点额度或采集设置。",
+          "en": "Display only; node allowances and collection settings are unchanged."
+        }
+      },
+      {
+        "key": "showNodeTrafficToday",
+        "type": "switch",
+        "default": true,
+        "name": {
+          "zh-CN": "今日已记录流量",
+          "en": "Recorded traffic today"
+        },
+        "help": {
+          "zh-CN": "显示卡片中的对应流量信息；不更改节点额度或采集设置。",
+          "en": "Display only; node allowances and collection settings are unchanged."
+        }
+      },
+      {
+        "key": "trafficDayTimezone",
+        "type": "select",
+        "options": "Asia/Shanghai,UTC",
+        "default": "Asia/Shanghai",
+        "name": {
+          "zh-CN": "今日流量统计时区",
+          "en": "Daily traffic timezone"
+        },
+        "help": {
+          "zh-CN": "Asia/Shanghai 为 UTC+8。按所选时区00:00起汇总已记录增量，不是精确账单；不会更改服务器时区。",
+          "en": "Asia/Shanghai is UTC+8. Sums stored increments since 00:00; not a billing total and does not change server timezone."
         }
       },
       {
