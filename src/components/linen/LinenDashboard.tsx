@@ -34,6 +34,7 @@ import Flag, { getFlagRegionCode } from "@/components/Flag";
 import { formatBytes } from "@/utils/unitHelper";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { summarizeNetwork, validCounter } from "./linenNetwork";
+import { readDisplayOptions, type DisplayOptions } from "./linenDisplay";
 import "./LinenDashboard.css";
 
 const EMPTY_LIVE: LiveSnapshot = { online: [], data: {} };
@@ -166,7 +167,15 @@ function Meter({
     </div>
   );
 }
-function NodeIdentity({ state, en }: { state: NodeState; en: boolean }) {
+function NodeIdentity({
+  state,
+  en,
+  display,
+}: {
+  state: NodeState;
+  en: boolean;
+  display: DisplayOptions;
+}) {
   const stateClass =
     !state.sampleKnown || (state.online && !state.record)
       ? "pending"
@@ -177,113 +186,159 @@ function NodeIdentity({ state, en }: { state: NodeState; en: boolean }) {
     ? en
       ? issueEnglish(state.issue)
       : state.issue
-    : !state.online
+    : state.online
       ? en
+        ? "Online"
+        : "在线"
+      : en
         ? "Offline"
-        : "离线"
-      : !state.record
-        ? en
-          ? "Waiting"
-          : "等待采样"
-        : en
-          ? "Online"
-          : "在线";
+        : "离线";
+  const metadata = [
+    display.showNodeRegion
+      ? getFlagRegionCode(state.node.region) ||
+        state.node.region ||
+        (en ? "Unknown region" : "未知地区")
+      : null,
+    display.showNodeGroup
+      ? state.node.group || (en ? "Ungrouped" : "未分组")
+      : null,
+    display.showNodeOs
+      ? state.node.os || (en ? "Unknown OS" : "未知系统")
+      : null,
+  ].filter((entry): entry is string => entry !== null);
   return (
-    <div className="linen-node-identity">
+    <div
+      className={
+        "linen-node-identity" + (display.showNodeRegion ? "" : " is-no-region")
+      }
+    >
       <span className={"linen-state-dot is-" + stateClass} aria-hidden="true" />
-      <span className="linen-node-avatar">
-        <Flag flag={state.node.region} decorative />
-      </span>
+      {display.showNodeRegion && (
+        <span className="linen-node-avatar">
+          <Flag flag={state.node.region} decorative />
+        </span>
+      )}
       <span className="linen-node-title-wrap">
         <Link className="linen-node-title" to={"/instance/" + state.node.uuid}>
           {state.node.name || (en ? "Unnamed node" : "未命名节点")}
         </Link>
-        <span className="linen-node-meta">
-          <span>
-            {getFlagRegionCode(state.node.region) ||
-              state.node.region ||
-              (en ? "Unknown region" : "未知地区")}
+        {metadata.length > 0 && (
+          <span className="linen-node-meta">
+            {metadata.map((entry, index) => (
+              <span key={index}>
+                {index > 0 && <i aria-hidden="true"> · </i>}
+                {entry}
+              </span>
+            ))}
           </span>
-          <i>·</i>
-          <span>{state.node.group || (en ? "Ungrouped" : "未分组")}</span>
-          <i>·</i>
-          <span>{state.node.os || (en ? "Unknown OS" : "未知系统")}</span>
-        </span>
+        )}
       </span>
       <span className={"linen-status-pill is-" + stateClass}>{label}</span>
     </div>
   );
 }
-function NodeRow({ state, en }: { state: NodeState; en: boolean }) {
+function NodeRow({
+  state,
+  en,
+  display,
+}: {
+  state: NodeState;
+  en: boolean;
+  display: DisplayOptions;
+}) {
   const record = state.online ? state.record : undefined;
   const empty = en ? "No sample" : "暂无采样";
+  const metrics =
+    Number(display.showNodeCpu) +
+    Number(display.showNodeMemory) +
+    Number(display.showNodeDisk);
   return (
     <article
       className={
         "linen-node-row " +
-        (state.sampleKnown && !state.online ? "is-offline" : "")
+        (state.sampleKnown && !state.online ? "is-offline " : "") +
+        (!metrics || !display.showNodeNetwork ? "has-custom-columns" : "")
       }
     >
       <div className="linen-node-row__identity">
-        <NodeIdentity state={state} en={en} />
+        <NodeIdentity state={state} en={en} display={display} />
       </div>
-      <div className="linen-node-row__metrics">
-        <Meter
-          label="CPU"
-          value={state.cpu}
-          detail={
-            state.cpu === null
-              ? empty
-              : (state.node.cpu_cores || "—") + (en ? " cores" : " 核心")
-          }
-          icon={Cpu}
-        />
-        <Meter
-          label={en ? "Memory" : "内存"}
-          value={state.memory}
-          detail={
-            record
-              ? formatBytes(record.ram.used) +
-                " / " +
-                formatBytes(state.node.mem_total)
-              : empty
-          }
-          icon={Activity}
-        />
-        <Meter
-          label={en ? "Disk" : "磁盘"}
-          value={state.disk}
-          detail={
-            record
-              ? formatBytes(record.disk.used) +
-                " / " +
-                formatBytes(state.node.disk_total)
-              : empty
-          }
-          icon={HardDrive}
-        />
-      </div>
-      <div className="linen-node-row__traffic">
-        <span className="linen-traffic-line">
-          <ArrowDownRight size={14} />
-          {fmtSpeed(record?.network.down)}
-        </span>
-        <span className="linen-traffic-line">
-          <ArrowUpRight size={14} />
-          {fmtSpeed(record?.network.up)}
-        </span>
-      </div>
+      {metrics > 0 && (
+        <div
+          className="linen-node-row__metrics"
+          style={{
+            gridTemplateColumns: "repeat(" + metrics + ",minmax(0,1fr))",
+          }}
+        >
+          {display.showNodeCpu && (
+            <Meter
+              label="CPU"
+              value={state.cpu}
+              detail={
+                state.cpu === null
+                  ? empty
+                  : (state.node.cpu_cores || "—") + (en ? " cores" : " 核心")
+              }
+              icon={Cpu}
+            />
+          )}
+          {display.showNodeMemory && (
+            <Meter
+              label={en ? "Memory" : "内存"}
+              value={state.memory}
+              detail={
+                record
+                  ? formatBytes(record.ram.used) +
+                    " / " +
+                    formatBytes(state.node.mem_total)
+                  : empty
+              }
+              icon={Activity}
+            />
+          )}
+          {display.showNodeDisk && (
+            <Meter
+              label={en ? "Disk" : "磁盘"}
+              value={state.disk}
+              detail={
+                record
+                  ? formatBytes(record.disk.used) +
+                    " / " +
+                    formatBytes(state.node.disk_total)
+                  : empty
+              }
+              icon={HardDrive}
+            />
+          )}
+        </div>
+      )}
+      {display.showNodeNetwork && (
+        <div className="linen-node-row__traffic">
+          <span className="linen-traffic-line">
+            <ArrowDownRight size={14} />
+            {fmtSpeed(record?.network.down)}
+          </span>
+          <span className="linen-traffic-line">
+            <ArrowUpRight size={14} />
+            {fmtSpeed(record?.network.up)}
+          </span>
+        </div>
+      )}
       <div className="linen-node-row__footer">
-        <span>
-          <Clock3 size={13} />
-          {en ? "Up" : "运行"} {uptime(record?.uptime, en)}
-        </span>
-        <span>
-          {en ? "1m load" : "1 分钟负载"}{" "}
-          {validCounter(record?.load.load1)
-            ? record.load.load1.toFixed(2)
-            : "—"}
-        </span>
+        {display.showNodeUptime && (
+          <span>
+            <Clock3 size={13} />
+            {en ? "Up" : "运行"} {uptime(record?.uptime, en)}
+          </span>
+        )}
+        {display.showNodeLoad && (
+          <span>
+            {en ? "1m load" : "1 分钟负载"}{" "}
+            {validCounter(record?.load.load1)
+              ? record.load.load1.toFixed(2)
+              : "—"}
+          </span>
+        )}
         <Link className="linen-detail-link" to={"/instance/" + state.node.uuid}>
           <span>{en ? "Details" : "节点详情"}</span>
           <ChevronRight size={15} />
@@ -338,12 +393,20 @@ function DashboardContent() {
   const { live_data, showCallout, refresh: refreshLive } = useLiveData();
   const { nodeList, isLoading, error, refresh } = useNodeList();
   const { publicInfo, refresh: refreshPublic } = usePublicInfo();
-  const prioritySetting = publicInfo?.theme_settings?.showPrioritySection;
-  const showPrioritySection =
-    prioritySetting !== false &&
-    prioritySetting !== "false" &&
-    prioritySetting !== 0 &&
-    prioritySetting !== "0";
+  const display = useMemo(
+    () => readDisplayOptions(publicInfo?.theme_settings),
+    [publicInfo?.theme_settings],
+  );
+  const showPrioritySection = display.showPrioritySection;
+  const overviewCount =
+    Number(display.showOverviewOnline) +
+    Number(display.showOverviewCpu) +
+    Number(display.showOverviewMemory) +
+    Number(display.showOverviewAttention);
+  const networkCount =
+    Number(display.showNetworkBandwidth) +
+    Number(display.showNetworkCounters) +
+    Number(display.showNetworkTotal);
   const [filter, setFilter] = useState<Filter>("all");
   const [group, setGroup] = useState("all");
   const [query, setQuery] = useState("");
@@ -407,7 +470,8 @@ function DashboardContent() {
           memory,
           disk,
           sampleKnown,
-          attention: liveReady && (!reportedOnline || highUsage || stale),
+          attention:
+            liveReady && reportedOnline && (highUsage || stale || !record),
           issue:
             !showCallout && live_data
               ? "实时连接中断"
@@ -609,259 +673,295 @@ function DashboardContent() {
           </button>
         </div>
       )}
-      <section className="linen-overview">
-        <article className="linen-overview__health">
-          <div className="linen-overview__eyebrow">
-            <Activity size={14} />
-            {text("当前在线率", "ONLINE NOW")}
-          </div>
-          <div className="linen-health-main">
-            <div
-              className="linen-health-ring"
-              style={
-                {
-                  "--health-angle": (onlineRate ?? 0) * 3.6 + "deg",
-                } as CSSProperties
-              }
-            >
-              <span>
-                {onlineRate === null ? "—" : onlineRate}
-                <small>{onlineRate === null ? "" : "%"}</small>
+      {overviewCount > 0 && (
+        <section
+          className={
+            "linen-overview" + (overviewCount < 4 ? " is-configured" : "")
+          }
+        >
+          {display.showOverviewOnline && (
+            <article className="linen-overview__health">
+              <div className="linen-overview__eyebrow">
+                <Activity size={14} />
+                {text("当前在线率", "ONLINE NOW")}
+              </div>
+              <div className="linen-health-main">
+                <div
+                  className="linen-health-ring"
+                  style={
+                    {
+                      "--health-angle": (onlineRate ?? 0) * 3.6 + "deg",
+                    } as CSSProperties
+                  }
+                >
+                  <span>
+                    {onlineRate === null ? "—" : onlineRate}
+                    <small>{onlineRate === null ? "" : "%"}</small>
+                  </span>
+                </div>
+                <div className="linen-health-copy">
+                  <strong>
+                    {liveReady ? onlineCount : "—"}
+                    <span> / {stateList.length}</span>
+                  </strong>
+                  <p>{text("节点在线", "nodes online")}</p>
+                  <span
+                    className={
+                      "linen-health-label " +
+                      (!liveReady ||
+                      stateList.length === 0 ||
+                      waitingCount > 0 ||
+                      offlineCount > 0
+                        ? "is-warn"
+                        : "is-good")
+                    }
+                  >
+                    {stateList.length === 0 ? (
+                      <>
+                        <Server size={13} />
+                        {text("暂无节点", "No nodes")}
+                      </>
+                    ) : !liveReady ? (
+                      <>
+                        <Activity size={13} />
+                        {text("等待首批采样", "Waiting for telemetry")}
+                      </>
+                    ) : waitingCount > 0 ? (
+                      <>
+                        <Activity size={13} />
+                        {text("部分节点待采样", "Some nodes awaiting samples")}
+                      </>
+                    ) : offlineCount > 0 ? (
+                      <>
+                        <AlertTriangle size={13} />
+                        {text("有节点离线", "Some nodes offline")}
+                      </>
+                    ) : (
+                      <>
+                        <Check size={13} />
+                        {text("全部在线", "All nodes online")}
+                      </>
+                    )}
+                  </span>
+                </div>
+              </div>
+              <div className="linen-health-legend">
+                <span>
+                  <i className="is-online" />
+                  {text("在线", "Online")} {liveReady ? onlineCount : "—"}
+                </span>
+                <span>
+                  <i className="is-offline" />
+                  {text("离线", "Offline")} {liveReady ? offlineCount : "—"}
+                </span>
+              </div>
+            </article>
+          )}
+          {display.showOverviewCpu && (
+            <article className="linen-stat-block">
+              <span className="linen-stat-block__icon is-cpu">
+                <Cpu size={17} />
               </span>
-            </div>
-            <div className="linen-health-copy">
+              <span className="linen-stat-block__label">
+                {text("平均 CPU", "AVERAGE CPU")}
+              </span>
+              <strong>{fmtPercent(cpuMean)}</strong>
+              <small>{text("在线节点均值", "Across online nodes")}</small>
+              <div className="linen-stat-rule">
+                <i style={{ width: (cpuMean ?? 0) + "%" }} />
+              </div>
+            </article>
+          )}
+          {display.showOverviewMemory && (
+            <article className="linen-stat-block">
+              <span className="linen-stat-block__icon is-memory">
+                <Activity size={17} />
+              </span>
+              <span className="linen-stat-block__label">
+                {text("已用内存", "MEMORY USED")}
+              </span>
               <strong>
-                {liveReady ? onlineCount : "—"}
-                <span> / {stateList.length}</span>
+                {liveReady && memoryStates.length ? formatBytes(ramUsed) : "—"}
               </strong>
-              <p>{text("节点在线", "nodes online")}</p>
-              <span
-                className={
-                  "linen-health-label " +
-                  (!liveReady ||
-                  stateList.length === 0 ||
-                  waitingCount > 0 ||
-                  offlineCount > 0
-                    ? "is-warn"
-                    : "is-good")
-                }
-              >
-                {stateList.length === 0 ? (
-                  <>
-                    <Server size={13} />
-                    {text("暂无节点", "No nodes")}
-                  </>
-                ) : !liveReady ? (
-                  <>
-                    <Activity size={13} />
-                    {text("等待首批采样", "Waiting for telemetry")}
-                  </>
-                ) : waitingCount > 0 ? (
-                  <>
-                    <Activity size={13} />
-                    {text("部分节点待采样", "Some nodes awaiting samples")}
-                  </>
-                ) : offlineCount > 0 ? (
-                  <>
-                    <AlertTriangle size={13} />
-                    {text("有节点离线", "Some nodes offline")}
-                  </>
-                ) : (
-                  <>
-                    <Check size={13} />
-                    {text("全部在线", "All nodes online")}
-                  </>
-                )}
+              <small>
+                {liveReady && ramTotal
+                  ? text("在线总量", "online capacity") +
+                    " " +
+                    formatBytes(ramTotal)
+                  : text("暂无采样", "No samples")}
+              </small>
+              <div className="linen-stat-rule">
+                <i style={{ width: (percent(ramUsed, ramTotal) ?? 0) + "%" }} />
+              </div>
+            </article>
+          )}
+          {display.showOverviewAttention && (
+            <article className="linen-stat-block">
+              <span className="linen-stat-block__icon is-focus">
+                <SlidersHorizontal size={17} />
               </span>
-            </div>
-          </div>
-          <div className="linen-health-legend">
-            <span>
-              <i className="is-online" />
-              {text("在线", "Online")} {liveReady ? onlineCount : "—"}
-            </span>
-            <span>
-              <i className="is-offline" />
-              {text("离线", "Offline")} {liveReady ? offlineCount : "—"}
-            </span>
-          </div>
-        </article>
-        <article className="linen-stat-block">
-          <span className="linen-stat-block__icon is-cpu">
-            <Cpu size={17} />
-          </span>
-          <span className="linen-stat-block__label">
-            {text("平均 CPU", "AVERAGE CPU")}
-          </span>
-          <strong>{fmtPercent(cpuMean)}</strong>
-          <small>{text("在线节点均值", "Across online nodes")}</small>
-          <div className="linen-stat-rule">
-            <i style={{ width: (cpuMean ?? 0) + "%" }} />
-          </div>
-        </article>
-        <article className="linen-stat-block">
-          <span className="linen-stat-block__icon is-memory">
-            <Activity size={17} />
-          </span>
-          <span className="linen-stat-block__label">
-            {text("已用内存", "MEMORY USED")}
-          </span>
-          <strong>
-            {liveReady && memoryStates.length ? formatBytes(ramUsed) : "—"}
-          </strong>
-          <small>
-            {liveReady && ramTotal
-              ? text("在线总量", "online capacity") +
-                " " +
-                formatBytes(ramTotal)
-              : text("暂无采样", "No samples")}
-          </small>
-          <div className="linen-stat-rule">
-            <i style={{ width: (percent(ramUsed, ramTotal) ?? 0) + "%" }} />
-          </div>
-        </article>
-        <article className="linen-stat-block">
-          <span className="linen-stat-block__icon is-focus">
-            <SlidersHorizontal size={17} />
-          </span>
-          <span className="linen-stat-block__label">
-            {text("待关注项目", "NEEDS ATTENTION")}
-          </span>
-          <strong>
-            {liveReady ? attention.length : "—"}
-            <span className="linen-stat-unit">{text("项", "items")}</span>
-          </strong>
-          <small>
-            {text("离线或资源利用率偏高", "Offline or high resource use")}
-          </small>
-          <div className="linen-stat-rule">
-            <i
-              className={attention.length ? "is-warning" : "is-clear"}
-              style={{
-                width:
-                  (stateList.length
-                    ? Math.min(100, (attention.length / stateList.length) * 100)
-                    : 0) + "%",
-              }}
-            />
-          </div>
-        </article>
-      </section>
-      <section
-        className="linen-network-overview"
-        aria-label={text("实时带宽与累计流量", "Live bandwidth and traffic")}
-      >
-        <article
-          className={
-            "linen-network-stat" + (network.ratePartial ? " is-partial" : "")
-          }
-          data-network="live"
-        >
-          <span className="linen-network-stat__label">
-            <Network size={15} />
-            {text("实时带宽", "LIVE BANDWIDTH")}
-          </span>
-          <div className="linen-network-stat__values">
-            <span>
-              <ArrowDownRight size={15} />
-              <strong data-metric="speed-down">
-                {fmtSpeed(network.speedDown)}
+              <span className="linen-stat-block__label">
+                {text("待关注项目", "NEEDS ATTENTION")}
+              </span>
+              <strong>
+                {liveReady ? attention.length : "—"}
+                <span className="linen-stat-unit">{text("项", "items")}</span>
               </strong>
-              <small>{text("下载", "Down")}</small>
-            </span>
-            <span>
-              <ArrowUpRight size={15} />
-              <strong data-metric="speed-up">
-                {fmtSpeed(network.speedUp)}
-              </strong>
-              <small>{text("上传", "Up")}</small>
-            </span>
-          </div>
-          <small className="linen-network-stat__note">
-            {text("仅新鲜在线样本", "Fresh online samples only")} ·{" "}
-            {network.rateNodes}/{network.nodeCount}{" "}
-            {text("可见节点", "visible nodes")}
-            {network.offlineNodes > 0
-              ? text(" · 离线 ", " · offline ") + network.offlineNodes
-              : ""}
-            {network.unknownNodes > 0
-              ? text(" · 状态未知 ", " · status unknown ") +
-                network.unknownNodes
-              : ""}
-            {network.ratePartial
-              ? text(" · 部分数据缺失", " · partial data")
-              : ""}
-          </small>
-        </article>
-        <article
+              <small>
+                {text(
+                  "在线节点资源异常或采样问题",
+                  "Online resource or sampling issues",
+                )}
+              </small>
+              <div className="linen-stat-rule">
+                <i
+                  className={attention.length ? "is-warning" : "is-clear"}
+                  style={{
+                    width:
+                      (stateList.length
+                        ? Math.min(
+                            100,
+                            (attention.length / stateList.length) * 100,
+                          )
+                        : 0) + "%",
+                  }}
+                />
+              </div>
+            </article>
+          )}
+        </section>
+      )}
+      {networkCount > 0 && (
+        <section
           className={
-            "linen-network-stat" + (network.counterPartial ? " is-partial" : "")
+            "linen-network-overview" +
+            (networkCount < 3 ? " is-configured" : "")
           }
-          data-network="counters"
+          aria-label={text("实时带宽与累计流量", "Live bandwidth and traffic")}
         >
-          <span className="linen-network-stat__label">
-            <ArrowRight size={15} />
-            {text("累计流量", "REPORTED TRAFFIC")}
-          </span>
-          <div className="linen-network-stat__values">
-            <span>
-              <ArrowDownRight size={15} />
-              <strong data-metric="total-down">
-                {network.totalDown === null
+          {display.showNetworkBandwidth && (
+            <article
+              className={
+                "linen-network-stat" +
+                (network.ratePartial ? " is-partial" : "")
+              }
+              data-network="live"
+            >
+              <span className="linen-network-stat__label">
+                <Network size={15} />
+                {text("实时带宽", "LIVE BANDWIDTH")}
+              </span>
+              <div className="linen-network-stat__values">
+                <span>
+                  <ArrowDownRight size={15} />
+                  <strong data-metric="speed-down">
+                    {fmtSpeed(network.speedDown)}
+                  </strong>
+                  <small>{text("下载", "Down")}</small>
+                </span>
+                <span>
+                  <ArrowUpRight size={15} />
+                  <strong data-metric="speed-up">
+                    {fmtSpeed(network.speedUp)}
+                  </strong>
+                  <small>{text("上传", "Up")}</small>
+                </span>
+              </div>
+              <small className="linen-network-stat__note">
+                {text("仅新鲜在线样本", "Fresh online samples only")} ·{" "}
+                {network.rateNodes}/{network.nodeCount}{" "}
+                {text("可见节点", "visible nodes")}
+                {network.offlineNodes > 0
+                  ? text(" · 离线 ", " · offline ") + network.offlineNodes
+                  : ""}
+                {network.unknownNodes > 0
+                  ? text(" · 状态未知 ", " · status unknown ") +
+                    network.unknownNodes
+                  : ""}
+                {network.ratePartial
+                  ? text(" · 部分数据缺失", " · partial data")
+                  : ""}
+              </small>
+            </article>
+          )}
+          {display.showNetworkCounters && (
+            <article
+              className={
+                "linen-network-stat" +
+                (network.counterPartial ? " is-partial" : "")
+              }
+              data-network="counters"
+            >
+              <span className="linen-network-stat__label">
+                <ArrowRight size={15} />
+                {text("累计流量", "REPORTED TRAFFIC")}
+              </span>
+              <div className="linen-network-stat__values">
+                <span>
+                  <ArrowDownRight size={15} />
+                  <strong data-metric="total-down">
+                    {network.totalDown === null
+                      ? "—"
+                      : formatBytes(network.totalDown)}
+                  </strong>
+                  <small>{text("下载", "Down")}</small>
+                </span>
+                <span>
+                  <ArrowUpRight size={15} />
+                  <strong data-metric="total-up">
+                    {network.totalUp === null
+                      ? "—"
+                      : formatBytes(network.totalUp)}
+                  </strong>
+                  <small>{text("上传", "Up")}</small>
+                </span>
+              </div>
+              <small className="linen-network-stat__note">
+                {text(
+                  "含离线节点最后上报值",
+                  "Includes last-reported offline counters",
+                )}{" "}
+                · {network.counterNodes}/{network.nodeCount}
+                {network.counterPartial
+                  ? text(" · 部分数据缺失", " · partial data")
+                  : ""}
+              </small>
+            </article>
+          )}
+          {display.showNetworkTotal && (
+            <article
+              className={
+                "linen-network-stat" +
+                (network.counterPartial ? " is-partial" : "")
+              }
+              data-network="total"
+            >
+              <span className="linen-network-stat__label">
+                <Activity size={15} />
+                {text("总消耗流量", "TOTAL TRANSFER")}
+              </span>
+              <strong
+                className="linen-network-stat__total"
+                data-metric="total-transfer"
+              >
+                {network.totalBytes === null
                   ? "—"
-                  : formatBytes(network.totalDown)}
+                  : formatBytes(network.totalBytes)}
               </strong>
-              <small>{text("下载", "Down")}</small>
-            </span>
-            <span>
-              <ArrowUpRight size={15} />
-              <strong data-metric="total-up">
-                {network.totalUp === null ? "—" : formatBytes(network.totalUp)}
-              </strong>
-              <small>{text("上传", "Up")}</small>
-            </span>
-          </div>
-          <small className="linen-network-stat__note">
-            {text(
-              "含离线节点最后上报值",
-              "Includes last-reported offline counters",
-            )}{" "}
-            · {network.counterNodes}/{network.nodeCount}
-            {network.counterPartial
-              ? text(" · 部分数据缺失", " · partial data")
-              : ""}
-          </small>
-        </article>
-        <article
-          className={
-            "linen-network-stat" + (network.counterPartial ? " is-partial" : "")
-          }
-          data-network="total"
-        >
-          <span className="linen-network-stat__label">
-            <Activity size={15} />
-            {text("总消耗流量", "TOTAL TRANSFER")}
-          </span>
-          <strong
-            className="linen-network-stat__total"
-            data-metric="total-transfer"
-          >
-            {network.totalBytes === null
-              ? "—"
-              : formatBytes(network.totalBytes)}
-          </strong>
-          <small className="linen-network-stat__note">
-            {text(
-              network.counterPartial
-                ? "仅已知部分：上传＋下载；非自然月账单，计数可能重置。"
-                : "所有可见节点上传＋下载；非自然月账单，计数可能重置。",
-              network.counterPartial
-                ? "Known portion only: upload + download. Not monthly billing; counters may reset."
-                : "All visible nodes: upload + download. Not monthly billing; counters may reset.",
-            )}
-          </small>
-        </article>
-      </section>
+              <small className="linen-network-stat__note">
+                {text(
+                  network.counterPartial
+                    ? "仅已知部分：上传＋下载；非自然月账单，计数可能重置。"
+                    : "所有可见节点上传＋下载；非自然月账单，计数可能重置。",
+                  network.counterPartial
+                    ? "Known portion only: upload + download. Not monthly billing; counters may reset."
+                    : "All visible nodes: upload + download. Not monthly billing; counters may reset.",
+                )}
+              </small>
+            </article>
+          )}
+        </section>
+      )}
       <section
         className={
           "linen-workspace" + (showPrioritySection ? "" : " is-fullwidth")
@@ -933,8 +1033,8 @@ function DashboardContent() {
               <span className="linen-queue-note__line" />
               <p>
                 {text(
-                  "关注项根据公开节点状态及最近采样估算。",
-                  "Attention is estimated from visible status and the latest sample.",
+                  "仅含在线节点的资源异常或采样问题；离线节点请查看离线筛选。",
+                  "Online resource or sampling issues only; offline nodes have a separate filter.",
                 )}
               </p>
             </div>
@@ -1078,7 +1178,12 @@ function DashboardContent() {
               </div>
             ) : list.length ? (
               list.map((item) => (
-                <NodeRow key={item.node.uuid} state={item} en={en} />
+                <NodeRow
+                  key={item.node.uuid}
+                  state={item}
+                  en={en}
+                  display={display}
+                />
               ))
             ) : (
               <div className="linen-list-state">

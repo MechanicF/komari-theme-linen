@@ -8,7 +8,7 @@
     "zh-CN": "原创节点运行台布局，包含可用率总览、待关注队列和可筛选的节点资源清单。",
     "en": "An original node-operations dashboard with availability, attention queue, and filterable capacity inventory."
   },
-  "version": "2.1.0",
+  "version": "2.2.0",
   "author": "MechanicF",
   "preview": "preview.png",
   "configuration": {
@@ -29,6 +29,235 @@
         "help": {
           "zh-CN": "显示首页左侧优先查看/待关注区域；关闭后节点清单占满可用宽度，状态筛选不受影响。",
           "en": "Show the homepage priority/attention sidebar. Disabling it expands inventory without changing status filters."
+        }
+      },
+      {
+        "type": "title",
+        "name": {
+          "zh-CN": "首页统计卡片",
+          "en": "Homepage overview cards"
+        }
+      },
+      {
+        "key": "showOverviewOnline",
+        "type": "switch",
+        "default": true,
+        "name": {
+          "zh-CN": "在线率卡片",
+          "en": "Online rate card"
+        },
+        "help": {
+          "zh-CN": "只控制内容显示，不改变数据采集、统计与待关注判断。",
+          "en": "Display only; collection, statistics and attention rules are unchanged."
+        }
+      },
+      {
+        "key": "showOverviewCpu",
+        "type": "switch",
+        "default": true,
+        "name": {
+          "zh-CN": "平均 CPU 卡片",
+          "en": "Average CPU card"
+        },
+        "help": {
+          "zh-CN": "只控制内容显示，不改变数据采集、统计与待关注判断。",
+          "en": "Display only; collection, statistics and attention rules are unchanged."
+        }
+      },
+      {
+        "key": "showOverviewMemory",
+        "type": "switch",
+        "default": true,
+        "name": {
+          "zh-CN": "内存汇总卡片",
+          "en": "Memory overview card"
+        },
+        "help": {
+          "zh-CN": "只控制内容显示，不改变数据采集、统计与待关注判断。",
+          "en": "Display only; collection, statistics and attention rules are unchanged."
+        }
+      },
+      {
+        "key": "showOverviewAttention",
+        "type": "switch",
+        "default": true,
+        "name": {
+          "zh-CN": "待关注数量卡片",
+          "en": "Attention count card"
+        },
+        "help": {
+          "zh-CN": "只控制内容显示，不改变数据采集、统计与待关注判断。",
+          "en": "Display only; collection, statistics and attention rules are unchanged."
+        }
+      },
+      {
+        "key": "showNetworkBandwidth",
+        "type": "switch",
+        "default": true,
+        "name": {
+          "zh-CN": "实时带宽卡片",
+          "en": "Live bandwidth card"
+        },
+        "help": {
+          "zh-CN": "只控制内容显示，不改变数据采集、统计与待关注判断。",
+          "en": "Display only; collection, statistics and attention rules are unchanged."
+        }
+      },
+      {
+        "key": "showNetworkCounters",
+        "type": "switch",
+        "default": true,
+        "name": {
+          "zh-CN": "累计上下行卡片",
+          "en": "Traffic counters card"
+        },
+        "help": {
+          "zh-CN": "只控制内容显示，不改变数据采集、统计与待关注判断。",
+          "en": "Display only; collection, statistics and attention rules are unchanged."
+        }
+      },
+      {
+        "key": "showNetworkTotal",
+        "type": "switch",
+        "default": true,
+        "name": {
+          "zh-CN": "总消耗流量卡片",
+          "en": "Total transfer card"
+        },
+        "help": {
+          "zh-CN": "只控制内容显示，不改变数据采集、统计与待关注判断。",
+          "en": "Display only; collection, statistics and attention rules are unchanged."
+        }
+      },
+      {
+        "type": "title",
+        "name": {
+          "zh-CN": "节点卡片内容",
+          "en": "Node card fields"
+        }
+      },
+      {
+        "key": "showNodeRegion",
+        "type": "switch",
+        "default": true,
+        "name": {
+          "zh-CN": "国旗与地区",
+          "en": "Flag and region"
+        },
+        "help": {
+          "zh-CN": "只控制内容显示，不改变数据采集、统计与待关注判断。",
+          "en": "Display only; collection, statistics and attention rules are unchanged."
+        }
+      },
+      {
+        "key": "showNodeGroup",
+        "type": "switch",
+        "default": true,
+        "name": {
+          "zh-CN": "分组",
+          "en": "Group"
+        },
+        "help": {
+          "zh-CN": "只控制内容显示，不改变数据采集、统计与待关注判断。",
+          "en": "Display only; collection, statistics and attention rules are unchanged."
+        }
+      },
+      {
+        "key": "showNodeOs",
+        "type": "switch",
+        "default": true,
+        "name": {
+          "zh-CN": "操作系统",
+          "en": "Operating system"
+        },
+        "help": {
+          "zh-CN": "只控制内容显示，不改变数据采集、统计与待关注判断。",
+          "en": "Display only; collection, statistics and attention rules are unchanged."
+        }
+      },
+      {
+        "key": "showNodeCpu",
+        "type": "switch",
+        "default": true,
+        "name": {
+          "zh-CN": "CPU 使用率",
+          "en": "CPU utilization"
+        },
+        "help": {
+          "zh-CN": "只控制内容显示，不改变数据采集、统计与待关注判断。",
+          "en": "Display only; collection, statistics and attention rules are unchanged."
+        }
+      },
+      {
+        "key": "showNodeMemory",
+        "type": "switch",
+        "default": true,
+        "name": {
+          "zh-CN": "内存使用率",
+          "en": "Memory utilization"
+        },
+        "help": {
+          "zh-CN": "只控制内容显示，不改变数据采集、统计与待关注判断。",
+          "en": "Display only; collection, statistics and attention rules are unchanged."
+        }
+      },
+      {
+        "key": "showNodeDisk",
+        "type": "switch",
+        "default": true,
+        "name": {
+          "zh-CN": "磁盘使用率",
+          "en": "Disk utilization"
+        },
+        "help": {
+          "zh-CN": "只控制内容显示，不改变数据采集、统计与待关注判断。",
+          "en": "Display only; collection, statistics and attention rules are unchanged."
+        }
+      },
+      {
+        "key": "showNodeNetwork",
+        "type": "switch",
+        "default": true,
+        "name": {
+          "zh-CN": "上下行网速",
+          "en": "Network rates"
+        },
+        "help": {
+          "zh-CN": "只控制内容显示，不改变数据采集、统计与待关注判断。",
+          "en": "Display only; collection, statistics and attention rules are unchanged."
+        }
+      },
+      {
+        "key": "showNodeUptime",
+        "type": "switch",
+        "default": true,
+        "name": {
+          "zh-CN": "连续运行时间",
+          "en": "Uptime"
+        },
+        "help": {
+          "zh-CN": "只控制内容显示，不改变数据采集、统计与待关注判断。",
+          "en": "Display only; collection, statistics and attention rules are unchanged."
+        }
+      },
+      {
+        "key": "showNodeLoad",
+        "type": "switch",
+        "default": true,
+        "name": {
+          "zh-CN": "1 分钟负载",
+          "en": "One-minute load"
+        },
+        "help": {
+          "zh-CN": "只控制内容显示，不改变数据采集、统计与待关注判断。",
+          "en": "Display only; collection, statistics and attention rules are unchanged."
+        }
+      },
+      {
+        "type": "title",
+        "name": {
+          "zh-CN": "页面外观",
+          "en": "Page appearance"
         }
       },
       {

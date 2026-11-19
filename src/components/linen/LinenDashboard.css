@@ -1218,3 +1218,21 @@
   font-size: 12px;
   text-align: center;
 }
+
+/* Configurable content reflows rather than leaving empty grid tracks. */
+.linen-overview.is-configured {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+}
+.linen-network-overview.is-configured {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr));
+}
+.linen-node-identity.is-no-region {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+}
+.linen-node-row.has-custom-columns,
+.linen-node-list.is-grid .linen-node-row.has-custom-columns {
+  grid-template-columns: minmax(0, 1fr);
+}
+.linen-node-row.has-custom-columns > * {
+  grid-column: 1/-1;
+}

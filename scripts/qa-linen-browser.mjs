@@ -332,7 +332,12 @@ try {
     .allTextContents();
   assert.deepEqual(offlineMeters, ["—", "—", "—"]);
   await page.getByRole("button", { name: /^待关注/ }).click();
-  assert.equal(await page.locator(".linen-node-row").count(), 2);
+  assert.equal(await page.locator(".linen-node-row").count(), 1);
+  assert.match(await page.locator(".linen-node-row").innerText(), /Singapore/);
+  assert.doesNotMatch(
+    await page.locator(".linen-attention").innerText(),
+    /Frankfurt/,
+  );
   await page.getByRole("button", { name: /^全部节点/ }).click();
   await page.getByRole("searchbox").fill("Helsinki");
   assert.equal(await page.locator(".linen-node-row").count(), 1);
@@ -364,6 +369,98 @@ try {
   await page.locator(".linen-node-row").nth(3).waitFor();
   assert.equal(await page.locator(".linen-attention").count(), 1);
   assert.equal(await page.locator(".linen-workspace.is-fullwidth").count(), 0);
+  // Card visibility is independent from status classification and must reflow.
+  const cardKeys = [
+    "showOverviewOnline",
+    "showOverviewCpu",
+    "showOverviewMemory",
+    "showOverviewAttention",
+    "showNetworkBandwidth",
+    "showNetworkCounters",
+    "showNetworkTotal",
+    "showNodeRegion",
+    "showNodeGroup",
+    "showNodeOs",
+    "showNodeCpu",
+    "showNodeMemory",
+    "showNodeDisk",
+    "showNodeNetwork",
+    "showNodeUptime",
+    "showNodeLoad",
+  ];
+  Object.assign(
+    publicInfo.theme_settings,
+    Object.fromEntries(cardKeys.map((key) => [key, false])),
+  );
+  await page.reload({ waitUntil: "networkidle" });
+  await page.waitForSelector(".linen-node-row");
+  assert.equal(
+    await page.locator(".linen-overview, .linen-network-overview").count(),
+    0,
+  );
+  assert.equal(
+    await page
+      .locator(
+        ".linen-node-row__metrics, .linen-node-row__traffic, .linen-node-avatar, .linen-node-meta, .linen-node-row__footer > span",
+      )
+      .count(),
+    0,
+  );
+  assert.equal(await page.locator(".linen-node-title").count(), 4);
+  for (const width of [320, 768, 1440]) {
+    await page.setViewportSize({ width, height: 1000 });
+    await page.evaluate(
+      () =>
+        new Promise((resolve) =>
+          requestAnimationFrame(() => requestAnimationFrame(resolve)),
+        ),
+    );
+    assert.ok(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth + 2,
+      ),
+      "hidden card fields must not overflow at " + width,
+    );
+  }
+  await page.getByRole("button", { name: /^待关注/ }).click();
+  assert.equal(await page.locator(".linen-node-row").count(), 1);
+  assert.match(await page.locator(".linen-node-row").innerText(), /Singapore/);
+  await page.getByRole("button", { name: /^全部节点/ }).click();
+  publicInfo.theme_settings.showOverviewCpu = true;
+  publicInfo.theme_settings.showNetworkTotal = true;
+  publicInfo.theme_settings.showNodeCpu = true;
+  await page.reload({ waitUntil: "networkidle" });
+  await page.waitForSelector(".linen-node-row");
+  assert.equal(await page.locator(".linen-overview article").count(), 1);
+  assert.equal(
+    await page.locator(".linen-network-overview article").count(),
+    1,
+  );
+  assert.equal(
+    await page.locator(".linen-node-row__metrics .linen-metric__value").count(),
+    4,
+  );
+  assert.equal(
+    await page.locator(".linen-node-meta, .linen-node-avatar").count(),
+    0,
+  );
+  for (const key of cardKeys) delete publicInfo.theme_settings[key];
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.reload({ waitUntil: "networkidle" });
+  await page.waitForSelector(".linen-node-row");
+  assert.equal(await page.locator(".linen-overview article").count(), 4);
+  assert.equal(
+    await page.locator(".linen-network-overview article").count(),
+    3,
+  );
+  assert.equal(
+    await page.locator(".linen-node-row__metrics .linen-metric__value").count(),
+    12,
+  );
+
+  report.push(
+    "16 card content toggles: all hidden, CPU-only and defaults; offline excluded from attention",
+  );
   scenario = "list-failure";
   await page.locator(".linen-refresh").click();
   await page.locator(".linen-error").waitFor();
