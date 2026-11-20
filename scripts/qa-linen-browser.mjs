@@ -44,11 +44,35 @@ const nodes = Object.fromEntries(
 );
 nodes["demo-tokyo"].traffic_limit = 200 * GiB;
 nodes["demo-tokyo"].traffic_limit_type = "sum";
+nodes["demo-tokyo"].expired_at = new Date(
+  Date.now() + 3 * 86400000,
+).toISOString();
+nodes["demo-singapore"].expired_at = "0001-01-01T00:00:00Z";
+nodes["demo-frankfurt"].expired_at = "";
+nodes["demo-helsinki"].expired_at = new Date(
+  Date.now() - 86400000,
+).toISOString();
+nodes["demo-tokyo"].expired_at = new Date(
+  Date.now() + 3 * 86400000,
+).toISOString();
+nodes["demo-singapore"].expired_at = "0001-01-01T00:00:00Z";
+nodes["demo-frankfurt"].expired_at = "";
+nodes["demo-helsinki"].expired_at = new Date(
+  Date.now() - 86400000,
+).toISOString();
 nodes["demo-singapore"].traffic_limit = 10 * GiB;
 nodes["demo-singapore"].traffic_limit_type = "up";
 nodes["demo-frankfurt"].traffic_limit = 0;
 nodes["demo-helsinki"].traffic_limit = 200 * GiB;
 nodes["demo-helsinki"].traffic_limit_type = "max";
+nodes["demo-tokyo"].expired_at = new Date(
+  Date.now() + 3 * 86400000,
+).toISOString();
+nodes["demo-singapore"].expired_at = "0001-01-01T00:00:00Z";
+nodes["demo-frankfurt"].expired_at = "";
+nodes["demo-helsinki"].expired_at = new Date(
+  Date.now() - 86400000,
+).toISOString();
 const layoutNodes = Object.fromEntries(
   Object.entries(nodes).map(([uuid, node]) => {
     if (uuid === "demo-tokyo")
@@ -153,7 +177,16 @@ const publicInfo = {
   description: "界面演示 · 样例数据",
   private_site: false,
   theme: "Linen",
-  theme_settings: { mainContentWidth: 100, showPrioritySection: true },
+  theme_settings: {
+    mainContentWidth: 100,
+    showPrioritySection: true,
+    carrierTelecomTaskId: "",
+    carrierUnicomTaskId: "",
+    carrierMobileTaskId: "",
+    carrierTelecomTaskId: "",
+    carrierUnicomTaskId: "",
+    carrierMobileTaskId: "",
+  },
   custom_head: "",
   custom_body: "",
 };
@@ -174,6 +207,93 @@ const resultFor = (req) => {
         ? layoutNodes
         : nodes;
   if (req.method === "common:getNodesLatestStatus") return makeLive();
+  if (req.method === "public:getPublicPingTasks")
+    return [
+      { id: 1, name: "上海电信", interval: 60 },
+      { id: 2, name: "上海联通", interval: 60 },
+      { id: 3, name: "上海移动", interval: 60 },
+    ];
+  if (
+    req.method === "public:queryMetrics" &&
+    req.params?.metric_keys?.includes("ping.latency_ms")
+  ) {
+    const end = Date.now();
+    return {
+      start: new Date(end - 60000).toISOString(),
+      end: new Date(end).toISOString(),
+      series: (req.params.entity_ids || []).flatMap((id) =>
+        [1, 2, 3].map((task) => ({
+          entity_id: id,
+          tags: { task_id: String(task) },
+          interval_seconds: 60,
+          points: [
+            {
+              time: new Date(end - 30000).toISOString(),
+              value: task === 3 ? -1 : task === 2 ? 0 : 25,
+            },
+          ],
+        })),
+      ),
+    };
+  }
+  if (req.method === "public:getPublicPingTasks")
+    return [
+      { id: 1, name: "上海电信", interval: 60 },
+      { id: 2, name: "上海联通", interval: 60 },
+      { id: 3, name: "上海移动", interval: 60 },
+    ];
+  if (
+    req.method === "public:queryMetrics" &&
+    req.params?.metric_keys?.includes("ping.latency_ms")
+  ) {
+    const end = Date.now();
+    return {
+      start: new Date(end - 60000).toISOString(),
+      end: new Date(end).toISOString(),
+      series: (req.params.entity_ids || []).flatMap((id) =>
+        [1, 2, 3].map((task) => ({
+          entity_id: id,
+          tags: { task_id: String(task) },
+          interval_seconds: 60,
+          points: [
+            {
+              time: new Date(end - 30000).toISOString(),
+              value: task === 3 ? -1 : task === 2 ? 0 : 25,
+            },
+          ],
+        })),
+      ),
+    };
+  }
+  if (req.method === "public:getPublicPingTasks")
+    return [
+      { id: 1, name: "上海电信", interval: 60 },
+      { id: 2, name: "上海联通", interval: 60 },
+      { id: 3, name: "上海移动", interval: 60 },
+    ];
+  if (
+    req.method === "public:queryMetrics" &&
+    req.params?.metric_keys?.includes("ping.latency_ms")
+  ) {
+    const end = Date.now();
+    return {
+      start: new Date(end - 60000).toISOString(),
+      end: new Date(end).toISOString(),
+      series: (req.params.entity_ids || []).flatMap((id) =>
+        [1, 2, 3].map((task) => ({
+          entity_id: id,
+          tags: { task_id: String(task) },
+          interval_seconds: 60,
+          points: [
+            {
+              time: new Date(end - 30000).toISOString(),
+              value: task === 3 ? -1 : task === 2 ? 0 : 25,
+            },
+          ],
+        })),
+      ),
+    };
+  }
   if (req.method.includes("Version")) return { version: "1.6.1", hash: "demo" };
   if (
     req.method === "public:queryMetrics" &&
@@ -338,6 +458,106 @@ try {
   await page.locator(".linen-node-row").nth(3).waitFor();
   assert.equal(await page.locator(".linen-node-row").count(), 4);
   assert.match(await page.locator(".linen-health-ring").innerText(), /75/);
+  assert.equal(await page.locator(".linen-expiry").count(), 2);
+  assert.match(
+    await page
+      .locator(".linen-node-row", { hasText: "Tokyo" })
+      .locator(".linen-expiry")
+      .innerText(),
+    /剩余 3 天/,
+  );
+  assert.match(
+    await page
+      .locator(".linen-node-row", { hasText: "Helsinki" })
+      .locator(".linen-expiry")
+      .innerText(),
+    /已到期/,
+  );
+  assert.equal(
+    await page
+      .locator(".linen-node-row", { hasText: "Singapore" })
+      .locator(".linen-expiry")
+      .count(),
+    0,
+  );
+  assert.equal(await page.locator(".linen-carrier").count(), 4);
+  assert.match(
+    await page.locator(".linen-carrier").first().innerText(),
+    /电信[\s\S]*联通[\s\S]*移动/,
+  );
+  assert.match(
+    await page.locator(".linen-carrier").first().innerText(),
+    /25 ms[\s\S]*0 ms[\s\S]*超时/,
+  );
+  report.push("expiry, carrier metrics, timeout and missing-date states");
+  assert.equal(await page.locator(".linen-expiry").count(), 2);
+  assert.match(
+    await page
+      .locator(".linen-node-row", { hasText: "Tokyo" })
+      .locator(".linen-expiry")
+      .innerText(),
+    /剩余 3 天/,
+  );
+  assert.match(
+    await page
+      .locator(".linen-node-row", { hasText: "Helsinki" })
+      .locator(".linen-expiry")
+      .innerText(),
+    /已到期/,
+  );
+  assert.equal(
+    await page
+      .locator(".linen-node-row", { hasText: "Singapore" })
+      .locator(".linen-expiry")
+      .count(),
+    0,
+  );
+  assert.equal(await page.locator(".linen-carrier").count(), 4);
+  assert.match(
+    await page.locator(".linen-carrier").first().innerText(),
+    /电信[\s\S]*联通[\s\S]*移动/,
+  );
+  assert.match(
+    await page.locator(".linen-carrier").first().innerText(),
+    /25 ms[\s\S]*0 ms[\s\S]*超时/,
+  );
+  report.push(
+    "filled expiry shown with remaining days; blank/sentinel expiry hidden; carrier fresh/zero/timeout states explicit",
+  );
+  assert.equal(await page.locator(".linen-expiry").count(), 2);
+  assert.match(
+    await page
+      .locator(".linen-node-row", { hasText: "Tokyo" })
+      .locator(".linen-expiry")
+      .innerText(),
+    /剩余 3 天/,
+  );
+  assert.match(
+    await page
+      .locator(".linen-node-row", { hasText: "Helsinki" })
+      .locator(".linen-expiry")
+      .innerText(),
+    /已到期/,
+  );
+  assert.equal(
+    await page
+      .locator(".linen-node-row", { hasText: "Singapore" })
+      .locator(".linen-expiry")
+      .count(),
+    0,
+  );
+  assert.equal(await page.locator(".linen-carrier").count(), 4);
+  assert.match(
+    await page.locator(".linen-carrier").first().innerText(),
+    /电信[\s\S]*联通[\s\S]*移动/,
+  );
+  assert.match(
+    await page.locator(".linen-carrier").first().innerText(),
+    /25 ms[\s\S]*0 ms[\s\S]*超时/,
+  );
+  report.push(
+    "filled expiry shown with remaining days; sentinel and blank expiry hidden; carrier fresh/zero/timeout states explicit",
+  );
   assert.equal(await page.locator(".linen-attention").count(), 1);
   assert.equal(
     await page

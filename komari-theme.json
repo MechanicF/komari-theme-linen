@@ -8,7 +8,7 @@
     "zh-CN": "原创节点运行台布局，包含可用率总览、待关注队列和可筛选的节点资源清单。",
     "en": "An original node-operations dashboard with availability, attention queue, and filterable capacity inventory."
   },
-  "version": "2.3.1",
+  "version": "2.4.0",
   "author": "MechanicF",
   "preview": "preview.png",
   "configuration": {
@@ -251,6 +251,71 @@
         "help": {
           "zh-CN": "只控制内容显示，不改变数据采集、统计与待关注判断。",
           "en": "Display only; collection, statistics and attention rules are unchanged."
+        }
+      },
+      {
+        "key": "showNodeExpiry",
+        "type": "switch",
+        "default": true,
+        "name": {
+          "zh-CN": "到期剩余时间",
+          "en": "Time until expiry"
+        },
+        "help": {
+          "zh-CN": "仅在节点设置了有效到期日期时显示。",
+          "en": "Shown only when the node has a valid expiry date."
+        }
+      },
+      {
+        "key": "showCarrierLatency",
+        "type": "switch",
+        "default": true,
+        "name": {
+          "zh-CN": "电信／联通／移动延迟",
+          "en": "Carrier latency"
+        },
+        "help": {
+          "zh-CN": "从现有公开测速任务读取延迟。",
+          "en": "Reads existing public latency tasks."
+        }
+      },
+      {
+        "key": "carrierTelecomTaskId",
+        "type": "string",
+        "default": "",
+        "name": {
+          "zh-CN": "电信测速任务 ID",
+          "en": "Telecom latency task ID"
+        },
+        "help": {
+          "zh-CN": "填公开测速任务的数字 ID；留空按名称自动匹配。",
+          "en": "Enter a public task ID, or leave blank to match by name."
+        }
+      },
+      {
+        "key": "carrierUnicomTaskId",
+        "type": "string",
+        "default": "",
+        "name": {
+          "zh-CN": "联通测速任务 ID",
+          "en": "Unicom latency task ID"
+        },
+        "help": {
+          "zh-CN": "填公开测速任务的数字 ID；留空按名称自动匹配。",
+          "en": "Enter a public task ID, or leave blank to match by name."
+        }
+      },
+      {
+        "key": "carrierMobileTaskId",
+        "type": "string",
+        "default": "",
+        "name": {
+          "zh-CN": "移动测速任务 ID",
+          "en": "Mobile latency task ID"
+        },
+        "help": {
+          "zh-CN": "填公开测速任务的数字 ID；留空按名称自动匹配。",
+          "en": "Enter a public task ID, or leave blank to match by name."
         }
       },
       {

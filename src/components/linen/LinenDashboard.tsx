@@ -36,6 +36,8 @@ import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { summarizeNetwork, validCounter } from "./linenNetwork";
 import { readDisplayOptions, type DisplayOptions } from "./linenDisplay";
 import NodeTraffic from "./NodeTraffic";
+import LinenExpiry from "./LinenExpiry";
+import LinenCarrierLatency, { useCarrierLatency } from "./LinenCarrierLatency";
 import { useDailyTraffic } from "./useDailyTraffic";
 import "./LinenDashboard.css";
 
@@ -244,11 +246,15 @@ function NodeRow({
   en,
   display,
   daily,
+  now,
+  latency,
 }: {
   state: NodeState;
   en: boolean;
   display: DisplayOptions;
   daily: ReturnType<typeof useDailyTraffic>;
+  now: number;
+  latency: ReturnType<typeof useCarrierLatency>;
 }) {
   const record = state.online ? state.record : undefined;
   const empty = en ? "No sample" : "暂无采样";
@@ -348,6 +354,16 @@ function NodeRow({
           <ChevronRight size={15} />
         </Link>
       </div>
+      {display.showNodeExpiry && (
+        <LinenExpiry value={state.node.expired_at} now={now} en={en} />
+      )}
+      {display.showCarrierLatency && (
+        <LinenCarrierLatency
+          nodeId={state.node.uuid}
+          en={en}
+          latency={latency}
+        />
+      )}
       <NodeTraffic
         node={state.node}
         network={state.record?.network}
@@ -416,6 +432,11 @@ function DashboardContent() {
     (nodeList ?? []).map((node) => node.uuid),
     display.showNodeTrafficToday && Boolean(publicInfo),
     publicInfo?.theme_settings?.trafficDayTimezone,
+  );
+  const latency = useCarrierLatency(
+    (nodeList ?? []).map((node) => node.uuid),
+    display.showCarrierLatency && Boolean(publicInfo),
+    publicInfo?.theme_settings,
   );
   const showPrioritySection = display.showPrioritySection;
   const overviewCount =
@@ -1208,6 +1229,8 @@ function DashboardContent() {
                   en={en}
                   display={display}
                   daily={daily}
+                  now={now}
+                  latency={latency}
                 />
               ))
             ) : (

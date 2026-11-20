@@ -2,7 +2,7 @@
 
 ![Linen v2 桌面首页](preview.png)
 
-Linen 2.3 是面向 Komari Monitor 1.6.1 的独立监控主题。首页与节点详情使用新组件和新布局，按“整体状态 → 待关注节点 → 资源清单 → 历史趋势”组织信息。
+Linen 2.4 是面向 Komari Monitor 1.6.1 的独立监控主题。首页与节点详情使用新组件和新布局，按“整体状态 → 待关注节点 → 资源清单 → 历史趋势”组织信息。
 
 ## 展示
 
@@ -43,6 +43,12 @@ Linen 2.3 是面向 Komari Monitor 1.6.1 的独立监控主题。首页与节点
 - 累计流量保留离线节点的最后上报计数；总消耗流量 = 已知累计上传 + 已知累计下载。计数可能因 Agent/系统重启或重置而变化，不代表自然月账单。
 - 部分节点或方向缺失时明确标记“部分数据缺失/仅已知部分”，缺测显示 —，真实的零仍显示为 0。
 
+### 2.4 到期与三网延迟
+
+- 节点填写有效到期日时显示剩余天数；留空或系统哨兵日期不显示。
+- 三网卡片复用现有公开测速任务；后台可分别填电信、联通、移动的测速任务 ID。留空时按任务名称自动匹配；不会创建测速任务。
+- 每节点显示最近有效的电信、联通、移动延迟（毫秒）；零延迟会如实显示。超时、无样本、过期样本和测速仍在读取均分别标注，不把旧值冒充实时值。
+
 ### 2.3 节点流量用量
 
 - 节点卡片新增“流量额度”“累计传输”“今日已记录”。后台可分别控制显示，并选择今日统计时区（默认 Asia/Shanghai，即 UTC+8；可选 UTC）。
@@ -74,7 +80,7 @@ Linen 2.3 是面向 Komari Monitor 1.6.1 的独立监控主题。首页与节点
 
 ## 安装与升级
 
-1. [下载 Linen 2.3.1 主题包](release/komari-theme-linen-2.3.1.zip)。请下载 ZIP 文件本身，不要上传 GitHub 的源码压缩包。
+1. [下载 Linen 2.4.0 主题包](release/komari-theme-linen-2.4.0.zip)。请下载 ZIP 文件本身，不要上传 GitHub 的源码压缩包。
 2. 登录 Komari 后台，进入“主题管理”，上传或更新 Linen。
 3. 对新安装主题选择“设为当前主题”，然后刷新首页。
 
@@ -96,7 +102,7 @@ npm run build
 python3 scripts/package-theme.py
 ```
 
-输出为 release/komari-theme-linen-2.3.1.zip。主题包只包含根目录清单、PNG 预览及 dist/ 资源；不含源码和 node_modules。完整前端构建占用较多内存，低内存主机请优先下载预构建包。
+输出为 release/komari-theme-linen-2.4.0.zip。主题包只包含根目录清单、PNG 预览及 dist/ 资源；不含源码和 node_modules。完整前端构建占用较多内存，低内存主机请优先下载预构建包。
 
 ## 浏览器验证
 
@@ -124,3 +130,8 @@ node scripts/qa-linen-browser.mjs
 - [官方主题文档](https://komari-document.pages.dev/dev/theme) · [上游前端 1.6.1](https://github.com/komari-monitor/komari-web/tree/1.6.1)
 
 流量算法依据：[Komari 1.6.1 指标映射](https://github.com/komari-monitor/komari/blob/1.6.1/internal/metricstore/report_mapping.go) · [额度计算](https://github.com/komari-monitor/komari/blob/1.6.1/utils/notifier/traffic.go)。
+
+### 节点到期与三网延迟
+
+- 卡片仅在节点填写有效到期日期时显示剩余天数；不足一天按一天显示，到期后显示“已到期”。
+- 三网延迟复用现有公开电信、联通和移动测速任务，显示最近采样的毫秒数、超时、暂无数据或数据过期。后台可分别关闭到期和三网显示；公开测速任务 ID 留空时按名称匹配。
