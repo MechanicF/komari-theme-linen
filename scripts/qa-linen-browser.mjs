@@ -116,11 +116,15 @@ const layoutNodes = Object.fromEntries(
     ];
   }),
 );
+let tokyoCPUOverride;
 const makeLive = () => {
   const sourceNodes = scenario === "layout" ? layoutNodes : nodes;
   const live = Object.fromEntries(
     Object.keys(sourceNodes).map((uuid, i) => {
-      const cpu = identities.find(([id]) => id === uuid)?.[4] ?? 36;
+      const cpu =
+        (uuid === "demo-tokyo" ? tokyoCPUOverride : undefined) ??
+        identities.find(([id]) => id === uuid)?.[4] ??
+        36;
       return [
         uuid,
         {
@@ -211,85 +215,38 @@ const resultFor = (req) => {
     return [
       { id: 1, name: "上海电信", interval: 60 },
       { id: 2, name: "上海联通", interval: 60 },
-      { id: 3, name: "上海移动", interval: 60 },
-    ];
+      { id: 3, name: "上海移动", interval: 60, weight: -10 },
+      { id: 4, name: "上海移动 IPv6", interval: 60 },
+      { id: 5, name: "北京移动", interval: 60 },
+    ].map((task) => ({ ...task, clients: Object.keys(nodes) }));
   if (
     req.method === "public:queryMetrics" &&
     req.params?.metric_keys?.includes("ping.latency_ms")
   ) {
     const end = Date.now();
-    return {
-      start: new Date(end - 60000).toISOString(),
-      end: new Date(end).toISOString(),
-      series: (req.params.entity_ids || []).flatMap((id) =>
-        [1, 2, 3].map((task) => ({
-          entity_id: id,
-          tags: { task_id: String(task) },
-          interval_seconds: 60,
-          points: [
-            {
-              time: new Date(end - 30000).toISOString(),
-              value: task === 3 ? -1 : task === 2 ? 0 : 25,
-            },
-          ],
-        })),
-      ),
+    // The latest values preserve the homepage's 25 ms / 0 ms / timeout checks.
+    const samples = {
+      1: [25],
+      2: [0],
+      3: [15, 0, null, -1],
+      4: [35, 0, null, 27],
+      5: [43, 40, 42],
     };
-  }
-  if (req.method === "public:getPublicPingTasks")
-    return [
-      { id: 1, name: "上海电信", interval: 60 },
-      { id: 2, name: "上海联通", interval: 60 },
-      { id: 3, name: "上海移动", interval: 60 },
-    ];
-  if (
-    req.method === "public:queryMetrics" &&
-    req.params?.metric_keys?.includes("ping.latency_ms")
-  ) {
-    const end = Date.now();
     return {
-      start: new Date(end - 60000).toISOString(),
+      start: new Date(end - 24 * 60000).toISOString(),
       end: new Date(end).toISOString(),
-      series: (req.params.entity_ids || []).flatMap((id) =>
-        [1, 2, 3].map((task) => ({
+      series: (req.params.entity_ids || [req.params.entity_id]).flatMap((id) =>
+        Object.entries(samples).map(([taskId, values]) => ({
           entity_id: id,
-          tags: { task_id: String(task) },
+          metric_key: "ping.latency_ms",
+          tags: { task_id: taskId },
           interval_seconds: 60,
-          points: [
-            {
-              time: new Date(end - 30000).toISOString(),
-              value: task === 3 ? -1 : task === 2 ? 0 : 25,
-            },
-          ],
-        })),
-      ),
-    };
-  }
-  if (req.method === "public:getPublicPingTasks")
-    return [
-      { id: 1, name: "上海电信", interval: 60 },
-      { id: 2, name: "上海联通", interval: 60 },
-      { id: 3, name: "上海移动", interval: 60 },
-    ];
-  if (
-    req.method === "public:queryMetrics" &&
-    req.params?.metric_keys?.includes("ping.latency_ms")
-  ) {
-    const end = Date.now();
-    return {
-      start: new Date(end - 60000).toISOString(),
-      end: new Date(end).toISOString(),
-      series: (req.params.entity_ids || []).flatMap((id) =>
-        [1, 2, 3].map((task) => ({
-          entity_id: id,
-          tags: { task_id: String(task) },
-          interval_seconds: 60,
-          points: [
-            {
-              time: new Date(end - 30000).toISOString(),
-              value: task === 3 ? -1 : task === 2 ? 0 : 25,
-            },
-          ],
+          points: values.map((value, index) => ({
+            time: new Date(
+              end - 30000 - (values.length - index - 1) * 60000,
+            ).toISOString(),
+            value,
+          })),
         })),
       ),
     };
@@ -1122,7 +1079,135 @@ try {
   );
   const detail = await metrics();
   assert.ok(detail.scrollWidth <= detail.width + 2, JSON.stringify(detail));
-  await page.screenshot({ path: out + "/preview-detail.png", fullPage: true });
+  const panel = page.locator(".linen-node-panel");
+  const quota = panel.locator(".linen-node-quota");
+  const routes = panel.locator(".linen-route-row");
+  const ipv4 = routes.and(page.locator('[data-family="ipv4"]'));
+  const ipv6 = routes.and(page.locator('[data-family="ipv6"]'));
+  const city = panel.getByRole("combobox", { name: "探测城市" });
+  const detect = panel.getByRole("button", { name: "检测线路", exact: true });
+  const speedTest = panel.getByRole("button", { name: "测速", exact: true });
+  const refreshNode = panel.getByRole("button", {
+    name: "刷新节点",
+    exact: true,
+  });
+  const menuButton = panel.locator(".linen-node-menu summary");
+  const detailSections = [
+    refreshNode,
+    menuButton,
+    panel,
+    quota,
+    panel.locator(".linen-node-resources"),
+    panel.locator(".linen-node-network"),
+    ipv4,
+    ipv6,
+    city,
+    detect,
+    speedTest,
+  ];
+  const detailBounds = async (width, height, firstScreen = false) => {
+    await page.setViewportSize({ width, height });
+    await page.evaluate(() => window.scrollTo(0, 0));
+    const viewport = await metrics();
+    assert.ok(viewport.scrollWidth <= width + 2, JSON.stringify(viewport));
+    const bounds = [];
+    for (const section of detailSections) {
+      const rect = await section.boundingBox();
+      assert.ok(rect && rect.width > 0 && rect.height > 0, section.toString());
+      const context = JSON.stringify({
+        width,
+        height,
+        section: section.toString(),
+        rect,
+      });
+      assert.ok(rect.x >= -1 && rect.x + rect.width <= width + 1, context);
+      if (firstScreen)
+        assert.ok(rect.y >= 0 && rect.y + rect.height <= height, context);
+      bounds.push({ top: rect.y, bottom: rect.y + rect.height });
+    }
+    return {
+      ...viewport,
+      height,
+      panelBottom: bounds[2].bottom,
+      actionsBottom: Math.max(...bounds.slice(-3).map(({ bottom }) => bottom)),
+    };
+  };
+  const selectCity = async (name) => {
+    const option = city.getByRole("option", { name, exact: true });
+    await option.waitFor({ state: "attached" });
+    await city.selectOption(await option.getAttribute("value"));
+  };
+  await selectCity("上海");
+  await ipv4.locator('i[data-state="loss"]').first().waitFor();
+  assert.equal(await routes.count(), 2);
+  for (const row of [ipv4, ipv6]) {
+    assert.equal(await row.locator(".linen-route-lights i").count(), 24);
+    assert.ok(await row.locator('i[data-state="good"]').count());
+    assert.ok(await row.locator('i[data-state="missing"]').count());
+  }
+  assert.match(await quota.innerText(), /114.*200/);
+  assert.ok(await detect.isEnabled());
+  assert.ok(await speedTest.isDisabled());
+  const detailFirstScreen = await detailBounds(520, 422, true);
+  await page.screenshot({
+    path: out + "/preview-detail.png",
+    animations: "disabled",
+  });
+  const liveCallCount = () =>
+    methodCalls.filter((call) => call.method === "common:getNodesLatestStatus")
+      .length;
+  const beforeNodeRefresh = liveCallCount();
+  tokyoCPUOverride = 38;
+  await refreshNode.tap();
+  await panel
+    .locator(".linen-node-resources")
+    .getByText(/^38(?:\.0)?%$/)
+    .waitFor();
+  assert.ok(
+    liveCallCount() > beforeNodeRefresh,
+    "刷新节点 should fetch current telemetry",
+  );
+  tokyoCPUOverride = undefined;
+  await menuButton.tap();
+  const menu = panel.getByRole("navigation", { name: "节点快捷入口" });
+  assert.equal(
+    await menu.getByRole("link", { name: "返回节点概览" }).getAttribute("href"),
+    "/",
+  );
+  await menu.getByRole("link", { name: "历史资源趋势" }).click();
+  await page.waitForURL((url) => url.hash === "#linen-history-title");
+  await menu.waitFor({ state: "hidden" });
+  report.push(
+    "detail refresh fetches updated telemetry; node menu links to overview and jumps to history",
+  );
+  await page.setViewportSize({ width: 320, height: 700 });
+  scenario = "layout";
+  await page.reload({ waitUntil: "networkidle" });
+  await panel
+    .getByRole("heading", { name: layoutNodes["demo-tokyo"].name })
+    .waitFor();
+  const detailNarrow = await detailBounds(320, 700);
+  await selectCity("北京");
+  await ipv4.locator('i[data-state="good"]').first().waitFor();
+  assert.equal(await ipv6.locator('i[data-state="missing"]').count(), 24);
+  const pingCallCount = () =>
+    methodCalls.filter(
+      (call) =>
+        call.method === "public:queryMetrics" &&
+        call.metricKeys?.includes("ping.latency_ms"),
+    ).length;
+  const beforeDetect = pingCallCount();
+  await detect.tap();
+  await ipv4.locator('i[data-state="good"]').first().waitFor();
+  assert.ok(
+    pingCallCount() > beforeDetect,
+    "检测线路 should re-query public samples",
+  );
+  report.push(
+    "520×422 detail panel and controls fully visible; 320px fits; IPv4/IPv6 sample states, city selection and refresh",
+  );
+  scenario = "normal";
+  await page.reload({ waitUntil: "networkidle" });
   await page.setViewportSize({ width: 390, height: 844 });
   const detailMobile = await metrics();
   assert.ok(
@@ -1130,7 +1215,7 @@ try {
     JSON.stringify(detailMobile),
   );
   assert.equal(
-    (await avatarOverflows(".linen-instance-avatar")).length,
+    (await avatarOverflows(".linen-node-flag")).length,
     0,
     "instance flag overflows at 390px",
   );
@@ -1142,7 +1227,7 @@ try {
       JSON.stringify(detailLayout),
     );
     assert.equal(
-      (await avatarOverflows(".linen-instance-avatar")).length,
+      (await avatarOverflows(".linen-node-flag")).length,
       0,
       "instance flag overflows",
     );
@@ -1158,11 +1243,11 @@ try {
     /离线/,
   );
   assert.equal(
-    await page.locator('.linen-instance-avatar img[src*="/UN.svg"]').count(),
+    await page.locator('.linen-node-flag img[src*="/UN.svg"]').count(),
     1,
   );
   assert.equal(
-    await page.locator(".linen-instance-stat>strong").first().innerText(),
+    await page.locator(".linen-node-resource strong").first().innerText(),
     "—",
   );
   scenario = "sparse";
@@ -1234,6 +1319,8 @@ try {
         mobile,
         detail,
         detailMobile,
+        detailFirstScreen,
+        detailNarrow,
         errors,
         screenshots: out,
       },

@@ -3,15 +3,10 @@ import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import {
   Activity,
-  ArrowDownLeft,
-  ArrowLeft,
   ArrowUpRight,
-  Clock3,
   Cpu,
-  HardDrive,
+  Ellipsis,
   Info,
-  MemoryStick,
-  Network,
   RefreshCw,
   Server,
 } from "lucide-react";
@@ -24,12 +19,17 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import Flag, { getFlagRegionCode } from "@/components/Flag";
+import Flag from "@/components/Flag";
 import { useLiveData } from "@/contexts/LiveDataContext";
 import { useNodeList } from "@/contexts/NodeListContext";
+import { usePublicInfo } from "@/contexts/PublicInfoContext";
 import { useRPC2Call } from "@/contexts/RPC2Context";
 import type { MetricSeries, QueryMetricsResponse } from "@/types/metrics";
 import { formatBytes } from "@/utils/unitHelper";
+import { getNodeExpiry } from "./linenExpiry";
+import { readDisplayOptions } from "./linenDisplay";
+import { trafficQuota } from "./linenTraffic";
+import { LinenRoutePanel } from "./LinenRoutePanel";
 import "./LinenInstance.css";
 
 const METRICS = [
@@ -84,7 +84,7 @@ function duration(value: number | undefined, en: boolean) {
         ? hours + "h " + minutes + "m"
         : minutes + "m"
     : days
-      ? days + "天 " + hours + "小时"
+      ? days + "天" + hours + "小时"
       : hours
         ? hours + "小时 " + minutes + "分"
         : minutes + "分钟";
@@ -125,33 +125,29 @@ function historyRows(series: MetricSeries[], keys: string[]) {
 function Stat({
   label,
   value,
-  detail,
-  icon,
   ratio,
+  tone,
+  title,
 }: {
   label: string;
   value: string;
-  detail: string;
-  icon: ReactNode;
-  ratio?: number | null;
+  ratio: number | null;
+  tone: string;
+  title?: string;
 }) {
   return (
-    <article className="linen-instance-stat">
-      <div className="linen-instance-stat__label">
-        {icon}
+    <div className={"linen-node-resource is-" + tone} title={title}>
+      <div>
         <span>{label}</span>
+        <strong>{value}</strong>
       </div>
-      <strong>{value}</strong>
-      {ratio !== undefined && (
-        <div className="linen-instance-meter" aria-hidden="true">
-          <span
-            className={ratio !== null && ratio >= 90 ? "is-high" : ""}
-            style={{ width: Math.min(100, Math.max(0, ratio ?? 0)) + "%" }}
-          />
-        </div>
-      )}
-      <small>{detail}</small>
-    </article>
+      <div className="linen-node-meter" aria-hidden="true">
+        <span
+          className={ratio !== null && ratio >= 90 ? "is-high" : ""}
+          style={{ width: Math.min(100, Math.max(0, ratio ?? 0)) + "%" }}
+        />
+      </div>
+    </div>
   );
 }
 function Facts({
@@ -474,10 +470,14 @@ function History({ uuid, en }: { uuid: string; en: boolean }) {
   );
 }
 export default function LinenInstance({ uuid }: { uuid: string }) {
-  const { i18n } = useTranslation();
+  const { i18n, t } = useTranslation();
   const en = (i18n.resolvedLanguage || i18n.language || "zh").startsWith("en");
   const { nodeList, isLoading, error, refresh } = useNodeList();
-  const { live_data, showCallout } = useLiveData();
+  const { live_data, showCallout, refresh: refreshLive } = useLiveData();
+  const { publicInfo } = usePublicInfo();
+  const display = readDisplayOptions(publicInfo?.theme_settings);
+  const [refreshing, setRefreshing] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const [now, setNow] = useState(Date.now());
   useEffect(() => {
     const timer = window.setInterval(() => setNow(Date.now()), 5000);
@@ -513,34 +513,43 @@ export default function LinenInstance({ uuid }: { uuid: string }) {
     stale: en ? "Sample stale" : "在线 · 样本已过期",
     online: en ? "Online" : "在线",
   }[state];
-  const unavailable =
-    state === "offline"
-      ? en
-        ? "Offline · no current reading"
-        : "节点离线 · 无当前读数"
-      : en
-        ? "Waiting for a fresh sample"
-        : "等待新的有效样本";
   const cpu = valid(current?.cpu.usage) ? current.cpu.usage : null;
   const memory = percent(current?.ram.used, node?.mem_total);
   const disk = percent(current?.disk.used, node?.disk_total);
+  const load = current?.load.load1;
+  const expiry = display.showNodeExpiry
+    ? getNodeExpiry(node?.expired_at, now)
+    : null;
+  const quota = trafficQuota(
+    raw?.network.totalUp,
+    raw?.network.totalDown,
+    node?.traffic_limit,
+    node?.traffic_limit_type,
+  );
+  const cycle = node?.billing_cycle;
+  const priced = valid(node?.price) && node.price > 0;
+  const price =
+    node?.price === -1
+      ? t("common.free")
+      : priced
+        ? (node.currency || "") + node.price
+        : "—";
+  const term =
+    priced && valid(cycle) && cycle > 0
+      ? "/" +
+        (cycle >= 27 && cycle <= 32
+          ? en
+            ? "mo"
+            : "月"
+          : cycle + (en ? "d" : "天"))
+      : "";
   return (
     <div className="linen-instance">
-      <header className="linen-instance-header">
-        <Link to="/" className="linen-instance-back">
-          <ArrowLeft size={16} />
-          <span>{en ? "Back to overview" : "返回节点概览"}</span>
-        </Link>
-        <span className="linen-instance-wordmark">
-          <Activity size={16} />
-          LINEN<span>/</span>
-          {en ? "NODE DETAIL" : "节点详情"}
-        </span>
-      </header>
       {isLoading && !node ? (
         <div className="linen-instance-empty" role="status">
           <Server size={30} />
           <h1>{en ? "Loading node…" : "正在读取节点…"}</h1>
+          <Link to="/">{en ? "Back to overview" : "返回节点概览"}</Link>
         </div>
       ) : !node ? (
         <div className="linen-instance-empty" role="alert">
@@ -567,6 +576,7 @@ export default function LinenInstance({ uuid }: { uuid: string }) {
             <RefreshCw size={14} />
             {en ? "Try again" : "重新读取"}
           </button>
+          <Link to="/">{en ? "Back to overview" : "返回节点概览"}</Link>
         </div>
       ) : (
         <>
@@ -583,187 +593,249 @@ export default function LinenInstance({ uuid }: { uuid: string }) {
               </button>
             </div>
           )}
-          <section className="linen-instance-hero">
-            <div className="linen-instance-identity">
-              <span className="linen-instance-avatar">
+          <section
+            className="linen-node-panel"
+            aria-label={en ? "Node overview" : "节点运行概览"}
+          >
+            <header className="linen-node-card linen-node-title">
+              <span className="linen-node-flag">
                 <Flag flag={node.region} decorative />
               </span>
-              <div>
-                <span className="linen-instance-eyebrow">
-                  {en ? "NODE / " : "节点 / "}
-                  {node.group || (en ? "Ungrouped" : "未分组")}
-                </span>
-                <h1>{node.name || (en ? "Unnamed node" : "未命名节点")}</h1>
-                <p>
-                  {getFlagRegionCode(node.region) ||
-                    node.region ||
-                    (en ? "Unknown region" : "未知地区")}
-                  <i>·</i>
-                  {node.os || (en ? "Unknown OS" : "未知系统")}
-                  <i>·</i>
-                  {node.arch || "—"}
-                </p>
-              </div>
-            </div>
-            <div className="linen-instance-health">
-              <span className={"linen-instance-status is-" + state}>
+              <h1 title={node.name}>
+                {node.name || (en ? "Unnamed node" : "未命名节点")}
+              </h1>
+              <span
+                className={"linen-instance-status is-" + state}
+                role="status"
+                title={status}
+              >
                 <i />
                 {status}
+                {state === "online" && valid(current?.uptime)
+                  ? " " + duration(current.uptime, en)
+                  : ""}
               </span>
-              <span>
-                {en ? "Last sample " : "最近采样 "}
-                <time
-                  dateTime={
-                    Number.isFinite(sampledAt)
-                      ? new Date(sampledAt).toISOString()
-                      : undefined
+              <button
+                type="button"
+                className="linen-node-icon linen-node-refresh"
+                disabled={refreshing}
+                aria-label={en ? "Refresh node" : "刷新节点"}
+                title={en ? "Refresh node" : "刷新节点"}
+                onClick={async () => {
+                  setRefreshing(true);
+                  try {
+                    await Promise.all([refresh(), refreshLive()]);
+                    setNow(Date.now());
+                  } finally {
+                    setRefreshing(false);
+                  }
+                }}
+              >
+                <RefreshCw size={17} />
+              </button>
+              <details
+                className="linen-node-menu"
+                open={menuOpen}
+                onToggle={(event) => setMenuOpen(event.currentTarget.open)}
+              >
+                <summary
+                  className="linen-node-icon"
+                  aria-label={en ? "Node actions" : "节点菜单"}
+                  onKeyDown={(event) => {
+                    if (event.key === "Escape") {
+                      event.currentTarget.parentElement?.removeAttribute(
+                        "open",
+                      );
+                    }
+                  }}
+                >
+                  <Ellipsis size={21} aria-hidden="true" />
+                </summary>
+                <nav
+                  aria-label={en ? "Node shortcuts" : "节点快捷入口"}
+                  onClick={() => setMenuOpen(false)}
+                >
+                  <Link to="/">{en ? "Back to overview" : "返回节点概览"}</Link>
+                  <a href="#linen-history-title">
+                    {en ? "Resource history" : "历史资源趋势"}
+                  </a>
+                  <a href="#linen-node-spec">
+                    {en ? "Hardware details" : "硬件资料"}
+                  </a>
+                </nav>
+              </details>
+            </header>
+            <section
+              className="linen-node-card linen-node-resources"
+              aria-label={en ? "Current resource readings" : "当前资源读数"}
+            >
+              <Stat label="CPU" value={pct(cpu)} ratio={cpu} tone="cpu" />
+              <Stat
+                label={en ? "Memory" : "内存"}
+                value={pct(memory)}
+                ratio={memory}
+                tone="memory"
+              />
+              <Stat
+                label={en ? "Storage" : "存储"}
+                value={pct(disk)}
+                ratio={disk}
+                tone="disk"
+              />
+              <Stat
+                label={en ? "Load" : "负载"}
+                value={valid(load) ? load.toFixed(2) : "—"}
+                ratio={
+                  valid(load) && valid(node.cpu_cores) && node.cpu_cores > 0
+                    ? (load / node.cpu_cores) * 100
+                    : null
+                }
+                tone="load"
+                title={
+                  en
+                    ? "One-minute load; bar relative to CPU cores"
+                    : "1 分钟负载；进度条相对 CPU 核心数"
+                }
+              />
+            </section>
+            <section
+              className="linen-node-card linen-node-network"
+              aria-label={en ? "Network and billing" : "网络与续费"}
+            >
+              <div aria-label={en ? "Current transfer rates" : "实时上下行"}>
+                <strong className="linen-node-up">
+                  ↑ {speed(current?.network.up)}
+                </strong>
+                <strong className="linen-node-down">
+                  ↓ {speed(current?.network.down)}
+                </strong>
+              </div>
+              <div
+                title={
+                  en
+                    ? "Last-reported cumulative transfer"
+                    : "最后上报的累计传输"
+                }
+              >
+                <strong>↑ {bytes(raw?.network.totalUp)}</strong>
+                <strong>↓ {bytes(raw?.network.totalDown)}</strong>
+              </div>
+              <div className="linen-node-billing">
+                {expiry && (
+                  <strong
+                    className={
+                      expiry?.state === "expired" ? "linen-node-error" : ""
+                    }
+                    title={expiry.date}
+                  >
+                    {expiry.state === "expired"
+                      ? en
+                        ? "Expired"
+                        : "已到期"
+                      : en
+                        ? expiry.days + "d left"
+                        : "剩余" + expiry.days + "天"}
+                  </strong>
+                )}
+                <span>
+                  {en ? "Renew" : "续费"} <b>{price}</b>
+                  {term}
+                </span>
+              </div>
+              <div
+                className="linen-node-connections"
+                aria-label={en ? "Active connections" : "当前连接数"}
+              >
+                <span>
+                  TCP{" "}
+                  <strong>
+                    {valid(current?.connections.tcp)
+                      ? current.connections.tcp
+                      : "—"}
+                  </strong>
+                </span>
+                <span>
+                  UDP{" "}
+                  <strong>
+                    {valid(current?.connections.udp)
+                      ? current.connections.udp
+                      : "—"}
+                  </strong>
+                </span>
+              </div>
+            </section>
+            {quota.limit !== null && display.showNodeTrafficProgress && (
+              <section
+                className="linen-node-card linen-node-quota"
+                aria-label={en ? "Traffic allowance" : "流量使用"}
+              >
+                <div className="linen-node-quota-heading">
+                  <span>
+                    {en ? "Traffic used" : "流量使用"}{" "}
+                    <strong
+                      className={
+                        quota.percent !== null && quota.percent > 100
+                          ? "linen-node-error"
+                          : "linen-node-up"
+                      }
+                    >
+                      {quota.percent === null
+                        ? "—"
+                        : new Intl.NumberFormat(en ? "en" : "zh", {
+                            maximumFractionDigits: 1,
+                          }).format(quota.percent) + "%"}
+                    </strong>
+                  </span>
+                  <small
+                    title={
+                      en
+                        ? "Last-reported counters, based on the configured allowance mode"
+                        : "最后上报的计数，按节点设置的额度口径计算"
+                    }
+                  >
+                    {en ? "Used " : "已用 "}
+                    {bytes(quota.used ?? undefined)} / {en ? "Total " : "总计 "}
+                    {bytes(quota.limit)}
+                  </small>
+                </div>
+                <div
+                  className="linen-node-quota-track"
+                  role={quota.bar === null ? undefined : "progressbar"}
+                  aria-hidden={quota.bar === null ? true : undefined}
+                  aria-label={en ? "Traffic allowance used" : "已用流量额度"}
+                  aria-valuenow={quota.bar ?? undefined}
+                  aria-valuetext={
+                    quota.percent === null
+                      ? undefined
+                      : quota.percent.toFixed(1) + "%"
                   }
                 >
-                  {fullDate(raw?.updated_at)}
-                </time>
-              </span>
-            </div>
+                  {Array.from({ length: 24 }, (_, i) => (
+                    <i
+                      key={i}
+                      className={
+                        i < Math.ceil(((quota.bar ?? 0) * 24) / 100)
+                          ? (quota.percent ?? 0) > 100
+                            ? "is-over"
+                            : "is-used"
+                          : undefined
+                      }
+                    />
+                  ))}
+                </div>
+              </section>
+            )}
+            {display.showCarrierLatency && (
+              <LinenRoutePanel key={uuid} uuid={uuid} zh={!en} now={now} />
+            )}
           </section>
-          <div className="linen-instance-uuid">
-            <Server size={12} />
-            <span>UUID</span>
-            <code>{uuid}</code>
-          </div>
-          {state !== "online" && (
-            <div className={"linen-instance-notice is-" + state} role="status">
-              <Info size={16} />
-              <span>
-                {state === "offline"
-                  ? en
-                    ? "This node is offline. Current metrics are hidden; historical samples remain available below."
-                    : "该节点当前离线，已隐藏实时读数；下方仍可查询既有历史样本。"
-                  : state === "disconnected"
-                    ? en
-                      ? "The live connection is interrupted. Current metrics are hidden until it recovers."
-                      : "实时连接已中断，恢复前不展示缓存读数为当前状态。"
-                    : state === "stale"
-                      ? en
-                        ? "No fresh sample in 30 seconds. Current readings are hidden until the next report."
-                        : "超过 30 秒未收到新采样，已隐藏过期读数，等待节点重新上报。"
-                      : en
-                        ? "Live data is not ready. Waiting for a valid report from the node."
-                        : "实时数据尚未就绪，正在等待节点提供有效样本。"}
-              </span>
-            </div>
-          )}
-          <section
-            className="linen-instance-stats"
-            aria-label={en ? "Current resource readings" : "当前资源读数"}
-          >
-            <Stat
-              label="CPU"
-              value={pct(cpu)}
-              ratio={cpu}
-              icon={<Cpu size={16} />}
-              detail={
-                current
-                  ? (valid(node.cpu_cores) && node.cpu_cores > 0
-                      ? node.cpu_cores + (en ? " cores" : " 核心")
-                      : "—") +
-                    " · " +
-                    (en ? "1m load " : "1 分钟负载 ") +
-                    (valid(current.load.load1)
-                      ? current.load.load1.toFixed(2)
-                      : "—")
-                  : unavailable
-              }
-            />
-            <Stat
-              label={en ? "Memory" : "内存"}
-              value={pct(memory)}
-              ratio={memory}
-              icon={<MemoryStick size={16} />}
-              detail={
-                current
-                  ? bytes(current.ram.used) +
-                    " / " +
-                    (node.mem_total > 0 ? bytes(node.mem_total) : "—")
-                  : unavailable
-              }
-            />
-            <Stat
-              label={en ? "Disk" : "磁盘"}
-              value={pct(disk)}
-              ratio={disk}
-              icon={<HardDrive size={16} />}
-              detail={
-                current
-                  ? bytes(current.disk.used) +
-                    " / " +
-                    (node.disk_total > 0 ? bytes(node.disk_total) : "—")
-                  : unavailable
-              }
-            />
-            <article className="linen-instance-stat linen-instance-network">
-              <div className="linen-instance-stat__label">
-                <Network size={16} />
-                {en ? "Network" : "网络吞吐"}
-              </div>
-              <div>
-                <span>
-                  <ArrowDownLeft size={15} />
-                  {en ? "Down" : "下载"}
-                </span>
-                <strong>{speed(current?.network.down)}</strong>
-              </div>
-              <div>
-                <span>
-                  <ArrowUpRight size={15} />
-                  {en ? "Up" : "上传"}
-                </span>
-                <strong>{speed(current?.network.up)}</strong>
-              </div>
-              <small>
-                {current
-                  ? en
-                    ? "Current transfer rate"
-                    : "当前传输速率"
-                  : unavailable}
-              </small>
-            </article>
-          </section>
-          <div className="linen-instance-runtime">
-            <span>
-              <Clock3 size={14} />
-              {en ? "Uptime" : "连续运行"}
-              <strong>{duration(current?.uptime, en)}</strong>
-            </span>
-            <span>
-              {en ? "Processes" : "进程"}
-              <strong>{valid(current?.process) ? current.process : "—"}</strong>
-            </span>
-            <span>
-              TCP / UDP
-              <strong>
-                {current
-                  ? (valid(current.connections.tcp)
-                      ? current.connections.tcp
-                      : "—") +
-                    " / " +
-                    (valid(current.connections.udp)
-                      ? current.connections.udp
-                      : "—")
-                  : "—"}
-              </strong>
-            </span>
-            <span>
-              {en ? "Total down / up" : "累计下载 / 上传"}
-              <strong>
-                {bytes(current?.network.totalDown)} /{" "}
-                {bytes(current?.network.totalUp)}
-              </strong>
-            </span>
-          </div>
           <History uuid={uuid} en={en} />
           <div className="linen-instance-section-heading">
             <div>
               <span className="linen-instance-eyebrow">NODE SPECIFICATION</span>
-              <h2>{en ? "Resources & hardware" : "资源与硬件资料"}</h2>
+              <h2 id="linen-node-spec">
+                {en ? "Resources & hardware" : "资源与硬件资料"}
+              </h2>
               <p>
                 {en
                   ? "Public node information, independent of current connectivity"
@@ -806,6 +878,13 @@ export default function LinenInstance({ uuid }: { uuid: string }) {
                 {node.virtualization}
               </Fact>
               <Fact label={en ? "Region" : "地区"}>{node.region}</Fact>
+              <Fact label="UUID">{uuid}</Fact>
+              <Fact label={en ? "Processes" : "进程"}>
+                {valid(current?.process) ? current.process : "—"}
+              </Fact>
+              <Fact label={en ? "Last sample" : "最近采样"}>
+                {fullDate(raw?.updated_at)}
+              </Fact>
               <Fact label={en ? "Group" : "分组"}>
                 {node.group || (en ? "Ungrouped" : "未分组")}
               </Fact>
