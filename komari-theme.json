@@ -8,7 +8,7 @@
     "zh-CN": "原创节点运行台布局，包含可用率总览、待关注队列和可筛选的节点资源清单。",
     "en": "An original node-operations dashboard with availability, attention queue, and filterable capacity inventory."
   },
-  "version": "2.4.0",
+  "version": "2.4.1",
   "author": "MechanicF",
   "preview": "preview.png",
   "configuration": {

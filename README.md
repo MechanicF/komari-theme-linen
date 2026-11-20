@@ -49,6 +49,10 @@ Linen 2.4 是面向 Komari Monitor 1.6.1 的独立监控主题。首页与节点
 - 三网卡片复用现有公开测速任务；后台可分别填电信、联通、移动的测速任务 ID。留空时按任务名称自动匹配；不会创建测速任务。
 - 每节点显示最近有效的电信、联通、移动延迟（毫秒）；零延迟会如实显示。超时、无样本、过期样本和测速仍在读取均分别标注，不把旧值冒充实时值。
 
+### 2.4.1 构建默认值
+
+- 源码构建时，到期与三网延迟显示开关同样默认开启，与2.4.0安装包行为一致。
+
 ### 2.3 节点流量用量
 
 - 节点卡片新增“流量额度”“累计传输”“今日已记录”。后台可分别控制显示，并选择今日统计时区（默认 Asia/Shanghai，即 UTC+8；可选 UTC）。
@@ -80,11 +84,11 @@ Linen 2.4 是面向 Komari Monitor 1.6.1 的独立监控主题。首页与节点
 
 ## 安装与升级
 
-1. [下载 Linen 2.4.0 主题包](release/komari-theme-linen-2.4.0.zip)。请下载 ZIP 文件本身，不要上传 GitHub 的源码压缩包。
+1. [下载 Linen 2.4.1 主题包](release/komari-theme-linen-2.4.1.zip)。请下载 ZIP 文件本身，不要上传 GitHub 的源码压缩包。
 2. 登录 Komari 后台，进入“主题管理”，上传或更新 Linen。
 3. 对新安装主题选择“设为当前主题”，然后刷新首页。
 
-**升级提示：**主题标识仍为 Linen。若你已经启用了旧版 Linen，更新同名主题文件可能立即改变线上页面。先保留 [2.2.1 主题包](release/komari-theme-linen-2.2.1.zip) 作为回滚副本。主题更新不需要升级 Komari 服务端或 Agent。
+**升级提示：**主题标识仍为 Linen。若你已经启用了旧版 Linen，更新同名主题文件可能立即改变线上页面。先保留最近一个稳定主题包（当前提供 [2.4.0](release/komari-theme-linen-2.4.0.zip)）作为回滚副本。主题更新不需要升级 Komari 服务端或 Agent。
 
 ### 刷新与回滚
 
@@ -102,7 +106,7 @@ npm run build
 python3 scripts/package-theme.py
 ```
 
-输出为 release/komari-theme-linen-2.4.0.zip。主题包只包含根目录清单、PNG 预览及 dist/ 资源；不含源码和 node_modules。完整前端构建占用较多内存，低内存主机请优先下载预构建包。
+输出为 release/komari-theme-linen-2.4.1.zip。主题包只包含根目录清单、PNG 预览及 dist/ 资源；不含源码和 node_modules。完整前端构建占用较多内存，低内存主机请优先下载预构建包。
 
 ## 浏览器验证
 

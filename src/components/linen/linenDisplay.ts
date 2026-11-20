@@ -16,6 +16,8 @@ export const DISPLAY_DEFAULTS = {
   showNodeNetwork: true,
   showNodeUptime: true,
   showNodeLoad: true,
+  showNodeExpiry: true,
+  showCarrierLatency: true,
   showNodeTrafficProgress: true,
   showNodeTrafficTotal: true,
   showNodeTrafficToday: true,
