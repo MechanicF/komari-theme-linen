@@ -32,18 +32,19 @@ export default function NodeTraffic({
   zone: string;
   fetched: number;
 }) {
-  if (
-    !display.showNodeTrafficProgress &&
-    !display.showNodeTrafficTotal &&
-    !display.showNodeTrafficToday
-  )
-    return null;
   const quota = trafficQuota(
     network?.totalUp,
     network?.totalDown,
     node.traffic_limit,
     node.traffic_limit_type,
   );
+  const showQuota = display.showNodeTrafficProgress && quota.limit !== null;
+  if (
+    !showQuota &&
+    !display.showNodeTrafficTotal &&
+    !display.showNodeTrafficToday
+  )
+    return null;
   const both =
     isTrafficValue(network?.totalUp) && isTrafficValue(network?.totalDown);
   const cumulative =
@@ -109,20 +110,16 @@ export default function NodeTraffic({
       }
       aria-label={en ? "Node traffic usage" : "节点流量用量"}
     >
-      {display.showNodeTrafficProgress && (
+      {showQuota && (
         <div className="linen-quota" data-node-traffic="quota">
           <div className="linen-quota__heading">
             <span>{en ? "Traffic allowance" : "流量额度"}</span>
             <strong>
-              {quota.limit === null
+              {quota.percent === null
                 ? en
-                  ? "No allowance set"
-                  : "未设置流量额度"
-                : quota.percent === null
-                  ? en
-                    ? "Usage unavailable"
-                    : "用量数据不足"
-                  : quota.percent.toFixed(1) + "%"}
+                  ? "Usage unavailable"
+                  : "用量数据不足"
+                : quota.percent.toFixed(1) + "%"}
             </strong>
           </div>
           {quota.bar !== null && (

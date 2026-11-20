@@ -405,9 +405,17 @@ try {
     "100",
   );
   assert.equal(await frankfurt.locator('[role="progressbar"]').count(), 0);
-  assert.match(
-    await frankfurt.locator('[data-node-traffic="quota"]').innerText(),
-    /未设置/,
+  assert.equal(
+    await frankfurt.locator('[data-node-traffic="quota"]').count(),
+    0,
+  );
+  assert.equal(
+    await frankfurt.locator('[data-node-traffic="cumulative"]').count(),
+    1,
+  );
+  assert.equal(
+    await frankfurt.locator('[data-node-traffic="today"]').count(),
+    1,
   );
   assert.equal(
     await tokyo.locator('[data-node-traffic="cumulative"]>strong').innerText(),
