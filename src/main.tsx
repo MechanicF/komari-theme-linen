@@ -3,7 +3,6 @@ import { createRoot } from "react-dom/client";
 import "./global.css";
 import { Theme } from "@radix-ui/themes";
 import "@radix-ui/themes/styles.css";
-import "./linen-theme.css";
 import {
   ThemeContext,
   THEME_DEFAULTS,

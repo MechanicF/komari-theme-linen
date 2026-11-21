@@ -1,3 +1,1 @@
-import LinenDashboard from "@/components/linen/LinenDashboard";
-
-export default LinenDashboard;
+export { ClearHome as default } from "@/components/clear/Page";

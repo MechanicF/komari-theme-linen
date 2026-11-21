@@ -1,14 +1,14 @@
 {
   "name": {
-    "zh-CN": "Linen 暖白",
-    "en": "Linen Warm"
+    "zh-CN": "Linen · 清朗",
+    "en": "Linen · Clear"
   },
   "short": "Linen",
   "description": {
-    "zh-CN": "原创节点运行台布局，包含可用率总览、待关注队列和可筛选的节点资源清单。",
-    "en": "An original node-operations dashboard with availability, attention queue, and filterable capacity inventory."
+    "zh-CN": "统一的浅灰蓝节点监控主题：首页与详情共享卡片，聚焦状态、资源和真实网络采样。",
+    "en": "A unified blue-gray monitoring interface with shared node cards and clear resource and network readings."
   },
-  "version": "2.6.1",
+  "version": "3.0.0",
   "url": "https://github.com/MechanicF/komari-theme-linen",
   "author": "MechanicF",
   "preview": "preview.png",
@@ -24,12 +24,12 @@
         "type": "switch",
         "default": true,
         "name": {
-          "zh-CN": "显示优先查看",
-          "en": "Show priority queue"
+          "zh-CN": "显示待关注筛选",
+          "en": "Show attention filter"
         },
         "help": {
-          "zh-CN": "显示首页左侧优先查看/待关注区域；关闭后节点清单占满可用宽度，状态筛选不受影响。",
-          "en": "Show the homepage priority/attention sidebar. Disabling it expands inventory without changing status filters."
+          "zh-CN": "显示在线节点的资源或采样异常筛选；离线节点单独分类。",
+          "en": "Show resource or sample issues for online nodes; offline nodes remain separate."
         }
       },
       {
@@ -46,32 +46,6 @@
         "name": {
           "zh-CN": "在线率卡片",
           "en": "Online rate card"
-        },
-        "help": {
-          "zh-CN": "只控制内容显示，不改变数据采集、统计与待关注判断。",
-          "en": "Display only; collection, statistics and attention rules are unchanged."
-        }
-      },
-      {
-        "key": "showOverviewCpu",
-        "type": "switch",
-        "default": true,
-        "name": {
-          "zh-CN": "平均 CPU 卡片",
-          "en": "Average CPU card"
-        },
-        "help": {
-          "zh-CN": "只控制内容显示，不改变数据采集、统计与待关注判断。",
-          "en": "Display only; collection, statistics and attention rules are unchanged."
-        }
-      },
-      {
-        "key": "showOverviewMemory",
-        "type": "switch",
-        "default": true,
-        "name": {
-          "zh-CN": "内存汇总卡片",
-          "en": "Memory overview card"
         },
         "help": {
           "zh-CN": "只控制内容显示，不改变数据采集、统计与待关注判断。",
@@ -98,19 +72,6 @@
         "name": {
           "zh-CN": "实时带宽卡片",
           "en": "Live bandwidth card"
-        },
-        "help": {
-          "zh-CN": "只控制内容显示，不改变数据采集、统计与待关注判断。",
-          "en": "Display only; collection, statistics and attention rules are unchanged."
-        }
-      },
-      {
-        "key": "showNetworkCounters",
-        "type": "switch",
-        "default": true,
-        "name": {
-          "zh-CN": "累计上下行卡片",
-          "en": "Traffic counters card"
         },
         "help": {
           "zh-CN": "只控制内容显示，不改变数据采集、统计与待关注判断。",
@@ -433,9 +394,8 @@
           "ja": "メインコンテンツの最大幅"
         },
         "help": {
-          "en": "Adjust the maximum width of the main content area as a percentage of viewport width (vw). Set to 100 for full width.",
-          "zh-CN": "调整主要内容的最大宽度，单位为视口宽度的百分比（vw）。设置为100以使用全宽。",
-          "ja": "メインコンテンツエリアの最大幅をビューポート幅のパーセンテージ（vw）で調整します。全幅にするには100に設定します。"
+          "zh-CN": "公开页内容宽度占视口的百分比，上限为主题设计宽度。",
+          "en": "Public page width as a viewport percentage, capped at the theme design width."
         },
         "default": 100
       }
