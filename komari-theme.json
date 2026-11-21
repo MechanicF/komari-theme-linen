@@ -8,7 +8,7 @@
     "zh-CN": "统一的浅灰蓝节点监控主题：首页与详情共享卡片，聚焦状态、资源和真实网络采样。",
     "en": "A unified blue-gray monitoring interface with shared node cards and clear resource and network readings."
   },
-  "version": "3.0.0",
+  "version": "3.1.0",
   "url": "https://github.com/MechanicF/komari-theme-linen",
   "author": "MechanicF",
   "preview": "preview.png",
@@ -250,8 +250,8 @@
           "en": "Telecom latency task ID"
         },
         "help": {
-          "zh-CN": "填公开测速任务的数字 ID；留空按名称自动匹配。",
-          "en": "Enter a public task ID, or leave blank to match by name."
+          "zh-CN": "填写要用于该栏的公开延迟检测任务数字 ID。到后台延迟任务列表查看 ID；留空显示“未配置”，不会按运营商名称自动选择。",
+          "en": "Choose the public latency task by its numeric ID from the backend task list. Blank means not configured; no automatic name matching."
         }
       },
       {
@@ -263,8 +263,8 @@
           "en": "Unicom latency task ID"
         },
         "help": {
-          "zh-CN": "填公开测速任务的数字 ID；留空按名称自动匹配。",
-          "en": "Enter a public task ID, or leave blank to match by name."
+          "zh-CN": "填写要用于该栏的公开延迟检测任务数字 ID。到后台延迟任务列表查看 ID；留空显示“未配置”，不会按运营商名称自动选择。",
+          "en": "Choose the public latency task by its numeric ID from the backend task list. Blank means not configured; no automatic name matching."
         }
       },
       {
@@ -276,8 +276,8 @@
           "en": "Mobile latency task ID"
         },
         "help": {
-          "zh-CN": "填公开测速任务的数字 ID；留空按名称自动匹配。",
-          "en": "Enter a public task ID, or leave blank to match by name."
+          "zh-CN": "填写要用于该栏的公开延迟检测任务数字 ID。到后台延迟任务列表查看 ID；留空显示“未配置”，不会按运营商名称自动选择。",
+          "en": "Choose the public latency task by its numeric ID from the backend task list. Blank means not configured; no automatic name matching."
         }
       },
       {
@@ -289,8 +289,8 @@
           "en": "Traffic allowance progress"
         },
         "help": {
-          "zh-CN": "显示卡片中的对应流量信息；不更改节点额度或采集设置。",
-          "en": "Display only; node allowances and collection settings are unchanged."
+          "zh-CN": "显示流量额度条；未设置额度时显示“∞ 无限额”完整条，计数缺失不等于无限额。",
+          "en": "Show allowance segments. No configured allowance displays an unlimited bar; missing usage remains unknown."
         }
       },
       {

@@ -256,7 +256,7 @@ export default function NodeCard({
             </span>
           </div>
         )}
-        {(expiry || priced || node.price === -1) && (
+        {(display.showNodeExpiry || priced || node.price === -1) && (
           <div className="lc-billing">
             {expiry && (
               <strong
@@ -296,7 +296,7 @@ export default function NodeCard({
           </span>
         </div>
       </div>
-      {display.showNodeTrafficProgress && quota.limit !== null && (
+      {display.showNodeTrafficProgress && (
         <div className="lc-quota">
           <div className="lc-quota-head">
             <span>
@@ -308,44 +308,73 @@ export default function NodeCard({
                     : "lc-up"
                 }
               >
-                {quota.percent === null ? "—" : quota.percent.toFixed(1) + "%"}
+                {quota.limit === null
+                  ? en
+                    ? "∞ Unlimited"
+                    : "∞ 无限额"
+                  : quota.percent === null
+                    ? "—"
+                    : quota.percent.toFixed(1) + "%"}
               </strong>
             </span>
             <small>
               {en ? "Used " : "已用 "}
-              {bytes(quota.used)} / {en ? "Total " : "额度 "}
-              {bytes(quota.limit)}
+              {quota.limit === null ? bytes(total) : bytes(quota.used)} /{" "}
+              {en ? "Total " : "额度 "}
+              {quota.limit === null ? "∞" : bytes(quota.limit)}
             </small>
           </div>
-          {quota.bar !== null && (
+          {quota.limit === null ? (
             <div
-              className="lc-segment-meter"
-              role="progressbar"
-              aria-label={en ? "Traffic allowance used" : "流量额度已用"}
-              aria-valuemin={0}
-              aria-valuemax={100}
-              aria-valuenow={Number(quota.bar.toFixed(2))}
+              className="lc-segment-meter is-unlimited"
+              aria-label={
+                en
+                  ? "Unlimited traffic; no allowance configured"
+                  : "无限额流量，未设置额度"
+              }
             >
               {Array.from({ length: 24 }, (_, i) => (
-                <i
-                  key={i}
-                  className={
-                    i < Math.ceil((quota.bar! * 24) / 100)
-                      ? quota.percent! >= 100
-                        ? "is-over"
-                        : "is-filled"
-                      : ""
-                  }
-                />
+                <i key={i} className="is-filled" />
               ))}
             </div>
+          ) : (
+            quota.bar !== null && (
+              <div
+                className="lc-segment-meter"
+                role="progressbar"
+                aria-label={en ? "Traffic allowance used" : "流量额度已用"}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={Number(quota.bar.toFixed(2))}
+              >
+                {Array.from({ length: 24 }, (_, i) => (
+                  <i
+                    key={i}
+                    className={
+                      i < Math.ceil((quota.bar! * 24) / 100)
+                        ? quota.percent! >= 100
+                          ? "is-over"
+                          : "is-filled"
+                        : ""
+                    }
+                  />
+                ))}
+              </div>
+            )
           )}
           <small className="lc-hint">
             {direction[quota.mode as keyof typeof direction]}
             {quota.over !== null && quota.over > 0
               ? " · " + (en ? "Over " : "超出 ") + bytes(quota.over)
               : ""}{" "}
-            · {en ? "reported counters" : "上报计数"}
+            ·{" "}
+            {quota.limit === null
+              ? en
+                ? "no configured allowance"
+                : "未设置额度"
+              : en
+                ? "reported counters"
+                : "上报计数"}
           </small>
         </div>
       )}
@@ -406,11 +435,15 @@ export default function NodeCard({
                       ? en
                         ? "Timeout"
                         : "超时"
-                      : row?.state === "stale"
+                      : row?.state === "unconfigured"
                         ? en
-                          ? "Stale"
-                          : "已过期"
-                        : "—"}
+                          ? "Not configured"
+                          : "未配置"
+                        : row?.state === "stale"
+                          ? en
+                            ? "Stale"
+                            : "已过期"
+                          : "—"}
                 </strong>
               </span>
             );

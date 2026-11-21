@@ -224,7 +224,7 @@ function ShellContent() {
                 Komari Monitor
               </a>
             </span>
-            <span>Linen 3.0</span>
+            <span>Linen 3.1</span>
           </footer>
           {typeof settings?.customFooterHtml === "string" &&
             settings.customFooterHtml && (

@@ -5,7 +5,8 @@ export const CARRIER_LABELS = {
 };
 export type Carrier = keyof typeof CARRIER_LABELS;
 export const CARRIERS = Object.keys(CARRIER_LABELS) as Carrier[];
-export type CarrierState = "fresh" | "missing" | "timeout" | "stale";
+export type CarrierState =
+  "fresh" | "missing" | "timeout" | "stale" | "unconfigured";
 export type CarrierLatency = {
   carrier: Carrier;
   value: number | null;
@@ -44,16 +45,16 @@ export function carrierTaskIds(
   >;
   const result: Partial<Record<Carrier, string>> = {};
   for (const c of CARRIERS) {
-    const value = String(root[idKeys[c]] || old[c] || "").trim();
+    const value = String(
+      Object.prototype.hasOwnProperty.call(root, idKeys[c])
+        ? (root[idKeys[c]] ?? "")
+        : (old[c] ?? ""),
+    ).trim();
     if (/^\d+$/.test(value) && Number(value) > 0) {
       if (!tasks.length || tasks.some((t) => String(t.id) === value))
         result[c] = value;
       continue;
     }
-    const task = tasks.find(
-      (t) => t.id != null && identifyCarrier(t.name) === c,
-    );
-    if (task) result[c] = String(task.id);
   }
   return result;
 }
@@ -106,13 +107,15 @@ export function deriveCarrierLatency(
       CARRIERS.map((carrier) => {
         const tid = map[carrier];
         const p = tid ? latest.get(id + "\0" + tid) : undefined;
-        const state: CarrierState = !p
-          ? "missing"
-          : now - p.at > p.window
-            ? "stale"
-            : p.value < 0
-              ? "timeout"
-              : "fresh";
+        const state: CarrierState = !tid
+          ? "unconfigured"
+          : !p
+            ? "missing"
+            : now - p.at > p.window
+              ? "stale"
+              : p.value < 0
+                ? "timeout"
+                : "fresh";
         return {
           carrier,
           state,

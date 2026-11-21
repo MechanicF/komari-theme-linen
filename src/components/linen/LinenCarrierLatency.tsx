@@ -42,7 +42,18 @@ export function useCarrierLatency(
         if (!active) return;
         if (!Array.isArray(tasks)) throw new Error("Invalid ping task list");
         if (!Object.keys(carrierTaskIds(mapping, tasks)).length) {
-          setState({ key, records: {}, error: false });
+          setState({
+            key,
+            records: deriveCarrierLatency(
+              tasks,
+              [],
+              nodes,
+              Date.now(),
+              180000,
+              mapping,
+            ),
+            error: false,
+          });
           return;
         }
         const end = Date.now();
@@ -111,6 +122,7 @@ export default function LinenCarrierLatency({
       </div>
     );
   const message = {
+    unconfigured: en ? "Not configured" : "未配置",
     missing: en ? "No data" : "暂无数据",
     timeout: en ? "Timed out" : "超时",
     stale: en ? "Stale" : "数据过期",

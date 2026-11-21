@@ -11,12 +11,12 @@
         "zh-CN": "统一的浅灰蓝节点监控主题：首页与详情共享卡片，聚焦状态、资源和真实网络采样。",
         "en": "A unified blue-gray monitoring interface with shared node cards and clear resource and network readings."
       },
-      "version": "3.0.0",
+      "version": "3.1.0",
       "author": "MechanicF",
       "url": "https://github.com/MechanicF/komari-theme-linen",
       "preview": "https://raw.githubusercontent.com/MechanicF/komari-theme-linen/main/preview.png",
-      "download": "https://github.com/MechanicF/komari-theme-linen/releases/download/v3.0.0/komari-theme-linen-3.0.0.zip",
-      "sha256": "9c6e3ca399481c9cd30acf3855084a07c3ccd245c33b435a3f43a0ccadc4f29b"
+      "download": "https://github.com/MechanicF/komari-theme-linen/releases/download/v3.1.0/komari-theme-linen-3.1.0.zip",
+      "sha256": "0fcf26908733944a4b056b3198689cba4678ab3a6bfc0921edc70f2ec55ee3ba"
     }
   ]
 }

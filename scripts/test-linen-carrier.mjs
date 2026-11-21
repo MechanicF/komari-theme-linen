@@ -19,7 +19,7 @@ assert.deepEqual(
     { id: 7, name: "Custom" },
     { id: 8, name: "联通" },
   ]),
-  { telecom: "7", unicom: "8" },
+  { telecom: "7" },
 );
 const tasks = [
   { id: 1, name: "电信" },
@@ -44,6 +44,11 @@ const records = mod.deriveCarrierLatency(
   ["node-a", "node-b"],
   100000,
   180000,
+  {
+    carrierTelecomTaskId: "1",
+    carrierUnicomTaskId: "2",
+    carrierMobileTaskId: "3",
+  },
 );
 assert.equal(records["node-a"][0].state, "fresh");
 assert.equal(records["node-a"][0].value, 22.6);
@@ -60,6 +65,12 @@ const latest = mod.deriveCarrierLatency(
   [row(1, -1), row(2, null), row(3, 0)],
   ["node-a"],
   100000,
+  180000,
+  {
+    carrierTelecomTaskId: "1",
+    carrierUnicomTaskId: "2",
+    carrierMobileTaskId: "3",
+  },
 );
 assert.deepEqual(
   latest["node-a"].map((r) => r.state),
@@ -77,4 +88,23 @@ assert.equal(
   )["node-a"][0].value,
   12,
 );
-console.log("carrier latency pure tests passed");
+assert.deepEqual(mod.carrierTaskIds({}, tasks), {});
+assert.deepEqual(
+  mod.carrierTaskIds(
+    { carrierTelecomTaskId: "", carrierLatencyTaskIds: { telecom: 1 } },
+    tasks,
+  ),
+  {},
+);
+assert.deepEqual(
+  mod.carrierTaskIds({ carrierTelecomTaskId: "999" }, tasks),
+  {},
+);
+assert.equal(
+  mod.deriveCarrierLatency(tasks, series, ["node-a"], 100000)["node-a"][0]
+    .state,
+  "unconfigured",
+);
+console.log(
+  "carrier latency pure tests passed; task selection explicit and no automatic fallback",
+);

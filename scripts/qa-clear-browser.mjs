@@ -184,12 +184,12 @@ const publicInfo = {
   theme_settings: {
     mainContentWidth: 100,
     showPrioritySection: true,
-    carrierTelecomTaskId: "",
-    carrierUnicomTaskId: "",
-    carrierMobileTaskId: "",
-    carrierTelecomTaskId: "",
-    carrierUnicomTaskId: "",
-    carrierMobileTaskId: "",
+    carrierTelecomTaskId: "1",
+    carrierUnicomTaskId: "2",
+    carrierMobileTaskId: "3",
+    carrierTelecomTaskId: "1",
+    carrierUnicomTaskId: "2",
+    carrierMobileTaskId: "3",
   },
   custom_head: "",
   custom_body: "",
@@ -438,7 +438,7 @@ try {
   );
   assert.equal(
     await page.locator('[data-node="demo-frankfurt"] .lc-quota').count(),
-    0,
+    1,
   );
   assert.match(
     await page.locator('[data-node="demo-tokyo"] .lc-billing').innerText(),
@@ -446,7 +446,7 @@ try {
   );
   assert.equal(
     await page.locator('[data-node="demo-singapore"] .lc-billing').count(),
-    0,
+    1,
   );
   await page.waitForFunction(() =>
     document
@@ -485,12 +485,87 @@ try {
     /Singapore/,
   );
   await page.getByLabel("排序", { exact: true }).selectOption("default");
+  assert.match(
+    await page.locator('[data-node="demo-frankfurt"] .lc-quota').innerText(),
+    /∞ 无限额/,
+  );
+  assert.equal(
+    await page
+      .locator('[data-node="demo-frankfurt"] .lc-quota [role=progressbar]')
+      .count(),
+    0,
+  );
+  assert.equal(
+    await page
+      .locator('[data-node="demo-frankfurt"] .is-unlimited .is-filled')
+      .count(),
+    24,
+  );
+  for (const key of [
+    "carrierTelecomTaskId",
+    "carrierUnicomTaskId",
+    "carrierMobileTaskId",
+  ])
+    publicInfo.theme_settings[key] = "";
+  await page.reload({ waitUntil: "networkidle" });
+  await page.waitForFunction(
+    () =>
+      document.querySelectorAll(".lc-carriers strong").length === 12 &&
+      [...document.querySelectorAll(".lc-carriers strong")].every(
+        (e) => e.textContent === "未配置",
+      ),
+  );
+  publicInfo.theme_settings.carrierTelecomTaskId = "5";
+  publicInfo.theme_settings.carrierUnicomTaskId = "2";
+  publicInfo.theme_settings.carrierMobileTaskId = "3";
+  await page.reload({ waitUntil: "networkidle" });
+  await page.waitForFunction(() =>
+    document
+      .querySelector('[data-node="demo-tokyo"] .lc-carriers')
+      ?.textContent.includes("42 ms"),
+  );
+  publicInfo.theme_settings.carrierTelecomTaskId = "999";
+  await page.reload({ waitUntil: "networkidle" });
+  assert.equal(
+    await page
+      .locator('[data-node="demo-tokyo"] .lc-carriers strong')
+      .first()
+      .innerText(),
+    "未配置",
+  );
+  publicInfo.theme_settings.carrierTelecomTaskId = "1";
+  await page.reload({ waitUntil: "networkidle" });
   report.push(
-    "four shared node cards, quota modes, expiry, public carrier data, search/status/group/sort filters",
+    "manual backend task IDs respected even with different carrier names; blank/invalid never auto-select; unlimited full bar",
   );
   for (const mode of ["卡片视图", "列表视图"]) {
     await page.getByRole("button", { name: mode, exact: true }).tap();
-    for (const w of [320, 360, 390, 520, 768, 1024, 1440]) await checkWidth(w);
+    for (const w of [320, 360, 390, 520, 768, 1024, 1440]) {
+      await checkWidth(w);
+      const heights = await page
+        .locator(".lc-fleet .lc-node")
+        .evaluateAll((items) =>
+          items.map((e) => e.getBoundingClientRect().height),
+        );
+      assert.ok(
+        Math.max(...heights) - Math.min(...heights) <= 1,
+        JSON.stringify({ w, mode, heights }),
+      );
+      const overflow = await page
+        .locator(
+          ".lc-node-head,.lc-node-meta,.lc-network,.lc-quota,.lc-usage,.lc-carriers",
+        )
+        .evaluateAll((items) =>
+          items
+            .filter(
+              (e) =>
+                e.scrollHeight > e.clientHeight + 2 ||
+                e.scrollWidth > e.clientWidth + 2,
+            )
+            .map((e) => e.className),
+        );
+      assert.deepEqual(overflow, [], JSON.stringify({ w, mode, overflow }));
+    }
   }
   await page.reload({ waitUntil: "networkidle" });
   assert.equal(
