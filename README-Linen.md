@@ -12,7 +12,7 @@ npm run build
 python3 scripts/package-theme.py
 ```
 
-输出主题包为 `release/komari-theme-linen-2.6.0.zip`。压缩包根目录包含 `komari-theme.json`、`preview.png` 和构建目录 `dist/`。
+输出主题包为 `release/komari-theme-linen-2.6.1.zip`。压缩包根目录包含 `komari-theme.json`、`preview.png` 和构建目录 `dist/`。
 
 ## 安装到 Komari
 

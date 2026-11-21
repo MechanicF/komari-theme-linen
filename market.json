@@ -1,0 +1,22 @@
+{
+  "schema": 1,
+  "themes": [
+    {
+      "name": {
+        "zh-CN": "Linen 暖白",
+        "en": "Linen Warm"
+      },
+      "short": "Linen",
+      "description": {
+        "zh-CN": "原创节点运行台布局，包含可用率总览、待关注队列和可筛选的节点资源清单。",
+        "en": "An original node-operations dashboard with availability, attention queue, and filterable capacity inventory."
+      },
+      "version": "2.6.1",
+      "author": "MechanicF",
+      "url": "https://github.com/MechanicF/komari-theme-linen",
+      "preview": "https://raw.githubusercontent.com/MechanicF/komari-theme-linen/main/preview.png",
+      "download": "https://github.com/MechanicF/komari-theme-linen/releases/download/v2.6.1/komari-theme-linen-2.6.1.zip",
+      "sha256": "be1301e73693f0acc195b6804fa8d108b2ce8e413a83c8ffddd46f508add8bf9"
+    }
+  ]
+}

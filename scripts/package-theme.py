@@ -3,6 +3,7 @@
 from pathlib import Path
 from zipfile import ZIP_DEFLATED, ZipFile
 import json
+import hashlib
 
 ROOT = Path(__file__).resolve().parents[1]
 DIST = ROOT / "dist"
@@ -35,4 +36,14 @@ with ZipFile(archive) as bundle:
     if any(name.startswith(("src/", "node_modules/")) for name in names):
         archive.unlink(missing_ok=True)
         raise SystemExit("Source files were unexpectedly added to the upload package")
+# Publish a Komari-compatible custom catalog alongside the installable ZIP.
+repository = "https://github.com/MechanicF/komari-theme-linen"
+if metadata.get("url") != repository:
+    raise SystemExit("Set the theme source URL before publishing an updatable package")
+entry = {key: metadata[key] for key in ("name", "short", "description", "version", "author", "url")}
+entry["preview"] = repository.replace("https://github.com/", "https://raw.githubusercontent.com/") + "/main/preview.png"
+entry["download"] = repository + f"/releases/download/v{metadata['version']}/{archive.name}"
+entry["sha256"] = hashlib.sha256(archive.read_bytes()).hexdigest()
+(ROOT / "market.json").write_text(json.dumps({"schema": 1, "themes": [entry]}, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 print(f"Created and verified {archive.relative_to(ROOT)} ({archive.stat().st_size:,} bytes; {len(names)} files)")
+print("Updated market.json with Release URL and archive SHA-256")

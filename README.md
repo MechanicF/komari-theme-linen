@@ -95,9 +95,41 @@ Linen 2.6 是面向 Komari Monitor 1.6.1 的独立监控主题。首页与节点
 - 修复稀疏历史样本只有孤立点时图表不可见；保留缺失区间断线。
 - 修复主题/设置刷新导致首页状态重置、空清单被标为健康等边界状态。
 
+## 后台在线安装与更新
+
+从 2.6.1 起，主题清单包含仓库来源 URL，并正式提供 GitHub Release 安装附件。
+
+### 已安装旧版 Linen
+
+旧安装包没有来源 URL，因此只点“更新”无法知道去哪里下载。请在后台“主题管理 → 导入主题/从 URL 导入”中填入：
+
+
+```text
+https://github.com/MechanicF/komari-theme-linen
+```
+
+
+确认覆盖同名 Linen 后，后续可使用主题管理的“更新”按钮。也可以下载下面的最新版 ZIP 并手动上传覆盖一次。这里填写的是仓库地址，不是 GitHub 的源码 ZIP。
+
+### 自定义主题市场源
+
+如使用“市场 → 主题市场”，在市场源管理中添加以下 JSON 地址，刷新后即可安装或更新 Linen：
+
+
+```text
+https://raw.githubusercontent.com/MechanicF/komari-theme-linen/main/market.json
+```
+
+
+这是本项目提供的自定义市场源；尚未收录到 Komari 官方默认市场。目录包含具体版本的 Release ZIP 下载地址和 SHA-256。
+
+### 以后发布新版本
+
+运行打包脚本会同时生成安装 ZIP 与 market.json。将源码和目录推送后，还需创建同版本 GitHub Release 并附上安装 ZIP；仅把文件上传到仓库目录不等于发布 Release。兼容 Komari 1.6.1 的下载规则，Release 的第一个附件保持为安装 ZIP。
+
 ## 安装与升级
 
-1. [下载 Linen 2.6.0 主题包](release/komari-theme-linen-2.6.0.zip)。请下载 ZIP 文件本身，不要上传 GitHub 的源码压缩包。
+1. [下载 Linen 2.6.1 主题包](release/komari-theme-linen-2.6.1.zip)。请下载 ZIP 文件本身，不要上传 GitHub 的源码压缩包。
 2. 登录 Komari 后台，进入“主题管理”，上传或更新 Linen。
 3. 对新安装主题选择“设为当前主题”，然后刷新首页。
 
@@ -119,7 +151,7 @@ npm run build
 python3 scripts/package-theme.py
 ```
 
-输出为 `release/komari-theme-linen-2.6.0.zip`。主题包只包含根目录清单、PNG 预览及 dist/ 资源；不含源码和 node_modules。完整前端构建占用较多内存，低内存主机请优先下载预构建包。
+输出为 `release/komari-theme-linen-2.6.1.zip`。主题包只包含根目录清单、PNG 预览及 dist/ 资源；不含源码和 node_modules。完整前端构建占用较多内存，低内存主机请优先下载预构建包。
 
 ## 浏览器验证
 
