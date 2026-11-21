@@ -149,7 +149,12 @@ export default function NodeTraffic({
                   : "")
               }
             >
-              <span style={{ width: quota.bar + "%" }} />
+              {Array.from({ length: 24 }, (_, i) => (
+                <span
+                  key={i}
+                  data-filled={i < Math.ceil(((quota.bar ?? 0) * 24) / 100)}
+                />
+              ))}
             </div>
           )}
           {quota.limit !== null && (

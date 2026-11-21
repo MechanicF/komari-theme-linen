@@ -660,7 +660,7 @@ try {
   const offlineMeters = await page
     .locator(".linen-node-row .linen-metric__value")
     .allTextContents();
-  assert.deepEqual(offlineMeters, ["—", "—", "—"]);
+  assert.deepEqual(offlineMeters, ["—", "—", "—", "—"]);
   await page.getByRole("button", { name: /^待关注/ }).click();
   assert.equal(await page.locator(".linen-node-row").count(), 1);
   assert.match(await page.locator(".linen-node-row").innerText(), /Singapore/);
@@ -788,7 +788,22 @@ try {
   );
   assert.equal(
     await page.locator(".linen-node-row__metrics .linen-metric__value").count(),
-    12,
+    16,
+  );
+  assert.equal(await page.locator(".linen-fleet-card").count(), 4);
+  assert.equal(
+    await page
+      .locator(".linen-fleet-card .linen-metric[data-tone=load]")
+      .count(),
+    4,
+  );
+  assert.equal(
+    await page
+      .locator(".linen-fleet-card .linen-quota__bar")
+      .first()
+      .locator("span")
+      .count(),
+    24,
   );
 
   report.push(
@@ -1024,7 +1039,8 @@ try {
       JSON.stringify({ width, compact, cards }),
     );
     assert.notEqual(compact.padding, cards.padding);
-    assert.notEqual(compact.radius, cards.radius);
+    assert.equal(compact.radius, "12px");
+    assert.equal(cards.radius, "12px");
     assert.ok(
       await page.evaluate(
         () => document.documentElement.scrollWidth <= innerWidth + 2,

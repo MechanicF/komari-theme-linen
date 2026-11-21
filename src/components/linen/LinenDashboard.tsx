@@ -10,7 +10,7 @@ import {
   Check,
   ChevronRight,
   CircleAlert,
-  Clock3,
+  Gauge,
   Cpu,
   HardDrive,
   LayoutGrid,
@@ -61,7 +61,11 @@ const percent = (used?: number, total?: number) =>
     ? null
     : Math.max(0, Math.min(100, (used! / total!) * 100));
 const fmtPercent = (value: number | null) =>
-  !validCounter(value) ? "—" : Math.round(value) + "%";
+  !validCounter(value)
+    ? "—"
+    : new Intl.NumberFormat(undefined, { maximumFractionDigits: 1 }).format(
+        value,
+      ) + "%";
 const fmtSpeed = (value?: number | null) =>
   validCounter(value) ? formatBytes(value) + "/s" : "—";
 const dateTime = (value?: string) => {
@@ -132,11 +136,15 @@ function Meter({
   value,
   detail,
   icon: Icon,
+  color,
+  reading,
 }: {
   label: string;
   value: number | null;
   detail: string;
   icon: typeof Cpu;
+  color: "cpu" | "memory" | "disk" | "load";
+  reading?: string;
 }) {
   const tone =
     value === null
@@ -149,10 +157,11 @@ function Meter({
   return (
     <div
       className="linen-metric"
+      data-tone={color}
       aria-label={
         value === null
           ? label + ": no sample"
-          : label + ": " + fmtPercent(value)
+          : label + ": " + (reading ?? fmtPercent(value))
       }
     >
       <div className="linen-metric__head">
@@ -161,7 +170,7 @@ function Meter({
           {label}
         </span>
         <span className={"linen-metric__value is-" + tone}>
-          {fmtPercent(value)}
+          {reading ?? fmtPercent(value)}
         </span>
       </div>
       <div className="linen-meter" aria-hidden="true">
@@ -216,7 +225,6 @@ function NodeIdentity({
         "linen-node-identity" + (display.showNodeRegion ? "" : " is-no-region")
       }
     >
-      <span className={"linen-state-dot is-" + stateClass} aria-hidden="true" />
       {display.showNodeRegion && (
         <span className="linen-node-avatar">
           <Flag flag={state.node.region} decorative />
@@ -237,7 +245,18 @@ function NodeIdentity({
           </span>
         )}
       </span>
-      <span className={"linen-status-pill is-" + stateClass}>{label}</span>
+      <span className={"linen-status-pill is-" + stateClass}>
+        <span
+          className={"linen-state-dot is-" + stateClass}
+          aria-hidden="true"
+        />
+        {label}
+        {state.online &&
+        display.showNodeUptime &&
+        validCounter(state.record?.uptime)
+          ? " " + uptime(state.record.uptime, en)
+          : ""}
+      </span>
     </div>
   );
 }
@@ -248,6 +267,8 @@ function NodeRow({
   daily,
   now,
   latency,
+  refreshing,
+  onRefresh,
 }: {
   state: NodeState;
   en: boolean;
@@ -255,24 +276,55 @@ function NodeRow({
   daily: ReturnType<typeof useDailyTraffic>;
   now: number;
   latency: ReturnType<typeof useCarrierLatency>;
+  refreshing: boolean;
+  onRefresh: () => Promise<void>;
 }) {
   const record = state.online ? state.record : undefined;
   const empty = en ? "No sample" : "暂无采样";
   const metrics =
     Number(display.showNodeCpu) +
     Number(display.showNodeMemory) +
-    Number(display.showNodeDisk);
+    Number(display.showNodeDisk) +
+    Number(display.showNodeLoad);
+  const load = record?.load.load1;
+  const loadRatio =
+    validCounter(load) && state.node.cpu_cores > 0
+      ? Math.min(100, (load / state.node.cpu_cores) * 100)
+      : null;
+  const priced = validCounter(state.node.price) && state.node.price > 0;
+  const cycle = state.node.billing_cycle;
+  const cycleLabel =
+    validCounter(cycle) && cycle > 0
+      ? cycle >= 27 && cycle <= 32
+        ? en
+          ? " / mo"
+          : " / 月"
+        : en
+          ? " / " + cycle + " days"
+          : " / " + cycle + " 天"
+      : "";
   return (
     <article
       className={
-        "linen-node-row " +
+        "linen-node-row linen-fleet-card " +
         (state.sampleKnown && !state.online ? "is-offline " : "") +
         (!metrics || !display.showNodeNetwork ? "has-custom-columns" : "")
       }
     >
-      <div className="linen-node-row__identity">
-        <NodeIdentity state={state} en={en} display={display} />
-      </div>
+      <header className="linen-fleet-head">
+        <div className="linen-node-row__identity">
+          <NodeIdentity state={state} en={en} display={display} />
+        </div>
+        <button
+          type="button"
+          className="linen-fleet-refresh"
+          disabled={refreshing}
+          aria-label={en ? "Refresh node telemetry" : "刷新节点读数"}
+          onClick={() => void onRefresh()}
+        >
+          <RefreshCw size={16} aria-hidden="true" />
+        </button>
+      </header>
       {metrics > 0 && (
         <div
           className="linen-node-row__metrics"
@@ -290,6 +342,7 @@ function NodeRow({
                   : (state.node.cpu_cores || "—") + (en ? " cores" : " 核心")
               }
               icon={Cpu}
+              color="cpu"
             />
           )}
           {display.showNodeMemory && (
@@ -304,11 +357,12 @@ function NodeRow({
                   : empty
               }
               icon={Activity}
+              color="memory"
             />
           )}
           {display.showNodeDisk && (
             <Meter
-              label={en ? "Disk" : "磁盘"}
+              label={en ? "Storage" : "存储"}
               value={state.disk}
               detail={
                 record
@@ -318,45 +372,87 @@ function NodeRow({
                   : empty
               }
               icon={HardDrive}
+              color="disk"
+            />
+          )}
+          {display.showNodeLoad && (
+            <Meter
+              label={en ? "Load" : "负载"}
+              value={loadRatio}
+              reading={validCounter(load) ? load.toFixed(2) : "—"}
+              detail={en ? "1-minute load" : "1 分钟负载"}
+              icon={Gauge}
+              color="load"
             />
           )}
         </div>
       )}
-      {display.showNodeNetwork && (
-        <div className="linen-node-row__traffic">
-          <span className="linen-traffic-line">
-            <ArrowDownRight size={14} />
-            {fmtSpeed(record?.network.down)}
+      <div className="linen-fleet-network">
+        {display.showNodeNetwork && (
+          <div
+            className="linen-node-row__traffic"
+            aria-label={en ? "Live rates" : "实时上下行"}
+          >
+            <span className="linen-traffic-line linen-rate-up">
+              <ArrowUpRight size={14} aria-hidden="true" />
+              {fmtSpeed(record?.network.up)}
+            </span>
+            <span className="linen-traffic-line linen-rate-down">
+              <ArrowDownRight size={14} aria-hidden="true" />
+              {fmtSpeed(record?.network.down)}
+            </span>
+          </div>
+        )}
+        {display.showNodeTrafficTotal && (
+          <div
+            className="linen-fleet-totals"
+            aria-label={en ? "Cumulative transfer" : "累计传输"}
+          >
+            <span className="linen-rate-up">
+              ↑ {formatBytes(state.record?.network.totalUp ?? NaN)}
+            </span>
+            <span className="linen-rate-down">
+              ↓ {formatBytes(state.record?.network.totalDown ?? NaN)}
+            </span>
+          </div>
+        )}
+        <div className="linen-fleet-billing">
+          {display.showNodeExpiry && (
+            <LinenExpiry value={state.node.expired_at} now={now} en={en} />
+          )}
+          {priced && (
+            <span>
+              {en ? "Renew " : "续费 "}
+              <strong>
+                {state.node.currency}
+                {state.node.price}
+              </strong>
+              {cycleLabel}
+            </span>
+          )}
+        </div>
+        <div
+          className="linen-fleet-connections"
+          aria-label={en ? "Current connections" : "当前连接数"}
+        >
+          <span>
+            TCP{" "}
+            <strong>
+              {validCounter(record?.connections.tcp)
+                ? record.connections.tcp
+                : "—"}
+            </strong>
           </span>
-          <span className="linen-traffic-line">
-            <ArrowUpRight size={14} />
-            {fmtSpeed(record?.network.up)}
+          <span>
+            UDP{" "}
+            <strong>
+              {validCounter(record?.connections.udp)
+                ? record.connections.udp
+                : "—"}
+            </strong>
           </span>
         </div>
-      )}
-      <div className="linen-node-row__footer">
-        {display.showNodeUptime && (
-          <span>
-            <Clock3 size={13} />
-            {en ? "Up" : "运行"} {uptime(record?.uptime, en)}
-          </span>
-        )}
-        {display.showNodeLoad && (
-          <span>
-            {en ? "1m load" : "1 分钟负载"}{" "}
-            {validCounter(record?.load.load1)
-              ? record.load.load1.toFixed(2)
-              : "—"}
-          </span>
-        )}
-        <Link className="linen-detail-link" to={"/instance/" + state.node.uuid}>
-          <span>{en ? "Details" : "节点详情"}</span>
-          <ChevronRight size={15} />
-        </Link>
       </div>
-      {display.showNodeExpiry && (
-        <LinenExpiry value={state.node.expired_at} now={now} en={en} />
-      )}
       {display.showCarrierLatency && (
         <LinenCarrierLatency
           nodeId={state.node.uuid}
@@ -375,6 +471,12 @@ function NodeRow({
         zone={daily.zone}
         fetched={daily.fetched}
       />
+      <div className="linen-node-row__footer">
+        <Link className="linen-detail-link" to={"/instance/" + state.node.uuid}>
+          {en ? "Details and routes" : "详情与线路"}
+          <ChevronRight size={15} aria-hidden="true" />
+        </Link>
+      </div>
     </article>
   );
 }
@@ -1231,6 +1333,8 @@ function DashboardContent() {
                   daily={daily}
                   now={now}
                   latency={latency}
+                  refreshing={refreshing}
+                  onRefresh={onRefresh}
                 />
               ))
             ) : (

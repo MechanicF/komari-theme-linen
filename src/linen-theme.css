@@ -1,7 +1,7 @@
-/* Linen — a warm, quiet Komari theme. Keep Radix accent tokens intact so the user's accent switch still works. */
+/* Linen — cool blue-gray theme tokens. Keep the Radix accent picker available. */
 .radix-themes.theme-root {
   --gray-1: #fcfbf8;
-  --gray-2: #f7f6f1;
+  --gray-2: #eef2f7;
   --gray-3: #f0efe9;
   --gray-4: #e9e7df;
   --gray-5: #e1ded5;
@@ -12,24 +12,24 @@
   --gray-10: #7a766a;
   --gray-11: #5f5c52;
   --gray-12: #2f302a;
-  --background: #f7f6f1;
-  --foreground: #292b25;
-  --card: #fffefa;
-  --card-foreground: #292b25;
-  --popover: #fffefa;
-  --popover-foreground: #292b25;
-  --primary: #5e7662;
-  --primary-foreground: #fffefa;
+  --background: #eef2f7;
+  --foreground: #1f2d4d;
+  --card: #ffffff;
+  --card-foreground: #1f2d4d;
+  --popover: #ffffff;
+  --popover-foreground: #1f2d4d;
+  --primary: #215bb8;
+  --primary-foreground: #ffffff;
   --secondary: #efeee7;
   --secondary-foreground: #484b43;
   --muted: #f0efe9;
-  --muted-foreground: #77786f;
+  --muted-foreground: #66758f;
   --accent: #ecebe3;
   --accent-foreground: #34372f;
   --destructive: #b6544d;
-  --border: #e7e4da;
+  --border: #e2e8f1;
   --input: #e1ded3;
-  --ring: #91a18d;
+  --ring: #3b82f6;
   --chart-1: #6e8b73;
   --chart-2: #d19c62;
   --chart-3: #7d9da0;
@@ -40,7 +40,7 @@
 }
 
 .dark .radix-themes.theme-root {
-  --gray-1: #20211d;
+  --gray-1: #111827;
   --gray-2: #252620;
   --gray-3: #2c2d26;
   --gray-4: #34352e;
@@ -52,14 +52,14 @@
   --gray-10: #98998d;
   --gray-11: #b8b8ac;
   --gray-12: #eeebe1;
-  --background: #20211d;
-  --foreground: #eeeae0;
-  --card: #282923;
-  --card-foreground: #eeeae0;
-  --popover: #282923;
-  --popover-foreground: #eeeae0;
+  --background: #111827;
+  --foreground: #eef4ff;
+  --card: #1b2638;
+  --card-foreground: #eef4ff;
+  --popover: #1b2638;
+  --popover-foreground: #eef4ff;
   --primary: #a2b49b;
-  --primary-foreground: #20211d;
+  --primary-foreground: #111827;
   --secondary: #34352e;
   --secondary-foreground: #e4e0d5;
   --muted: #30312b;
@@ -67,7 +67,7 @@
   --accent: #36372f;
   --accent-foreground: #f0ede4;
   --destructive: #e18b7d;
-  --border: #3b3c34;
+  --border: #2e3c51;
   --input: #44453c;
   --ring: #8fa18a;
   --chart-1: #a4c39c;
@@ -79,29 +79,23 @@
 }
 
 html:not(.dark) body {
-  background: #f7f6f1;
+  background: #eef2f7;
 }
 
 .km-layout {
-  background-color: #f7f6f1;
+  background-color: #eef2f7;
 }
 
 .km-layout:not(.bg-cover) {
-  background-image:
-    radial-gradient(ellipse at 12% -12%, rgba(217, 197, 160, 0.22), transparent 38%),
-    radial-gradient(ellipse at 100% 8%, rgba(193, 210, 190, 0.16), transparent 32%),
-    linear-gradient(180deg, #faf9f5 0%, #f5f3ed 100%);
+  background-image: none;
 }
 
 .dark .km-layout {
-  background-color: #20211d;
+  background-color: #111827;
 }
 
 .dark .km-layout:not(.bg-cover) {
-  background-image:
-    radial-gradient(ellipse at 12% -12%, rgba(112, 117, 83, 0.18), transparent 38%),
-    radial-gradient(ellipse at 100% 8%, rgba(78, 105, 86, 0.14), transparent 32%),
-    linear-gradient(180deg, #22231f 0%, #1d1e1a 100%);
+  background-image: none;
 }
 
 .km-main {
@@ -136,13 +130,16 @@ html:not(.dark) body {
   border-radius: 18px !important;
   background: var(--card) !important;
   box-shadow: 0 8px 24px rgba(73, 65, 48, 0.055);
-  transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
+  transition:
+    transform 180ms ease,
+    box-shadow 180ms ease,
+    border-color 180ms ease;
 }
 
 .km-node-card:hover {
   transform: translateY(-2px);
   border-color: #d4cbb7 !important;
-  box-shadow: 0 14px 30px rgba(73, 65, 48, 0.10) !important;
+  box-shadow: 0 14px 30px rgba(73, 65, 48, 0.1) !important;
 }
 
 .dark .km-node-card,

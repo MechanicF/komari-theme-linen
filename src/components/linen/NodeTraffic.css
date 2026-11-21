@@ -25,24 +25,24 @@
   font-size: 11px;
 }
 .linen-quota__bar {
-  height: 5px;
+  display: grid;
+  grid-template-columns: repeat(24, minmax(0, 1fr));
+  gap: clamp(1px, 0.6vw, 4px);
   margin-top: 7px;
-  overflow: hidden;
-  border-radius: 99px;
-  background: var(--line);
 }
 .linen-quota__bar span {
-  display: block;
-  height: 100%;
-  border-radius: inherit;
-  background: var(--sage);
-  transition: width 0.3s;
+  height: 7px;
+  border-radius: 3px;
+  background: var(--fleet-track, var(--line));
 }
-.linen-quota__bar.is-warn span {
-  background: var(--warm);
+.linen-quota__bar span[data-filled="true"] {
+  background: #22c55e;
 }
-.linen-quota__bar.is-over span {
-  background: var(--danger);
+.linen-quota__bar.is-warn span[data-filled="true"] {
+  background: #f59e0b;
+}
+.linen-quota__bar.is-over span[data-filled="true"] {
+  background: #ef4444;
 }
 .linen-quota__note,
 .linen-traffic-help {
